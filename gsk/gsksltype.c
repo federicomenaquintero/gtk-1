@@ -42,6 +42,7 @@ struct _GskSlTypeClass {
   void                  (* print)                               (GskSlType           *type,
                                                                  GString             *string);
   GskSlScalarType       (* get_scalar_type)                     (GskSlType           *type);
+  guint                 (* get_length)                          (GskSlType           *type);
   gboolean              (* can_convert)                         (GskSlType           *target,
                                                                  GskSlType           *source);
 };
@@ -125,6 +126,12 @@ gsk_sl_type_scalar_get_scalar_type (GskSlType *type)
   return scalar->scalar;
 }
 
+static guint
+gsk_sl_type_scalar_get_length (GskSlType *type)
+{
+  return 0;
+}
+
 static gboolean
 gsk_sl_type_scalar_can_convert (GskSlType *target,
                                 GskSlType *source)
@@ -142,6 +149,7 @@ static const GskSlTypeClass GSK_SL_TYPE_SCALAR = {
   gsk_sl_type_scalar_free,
   gsk_sl_type_scalar_print,
   gsk_sl_type_scalar_get_scalar_type,
+  gsk_sl_type_scalar_get_length,
   gsk_sl_type_scalar_can_convert
 };
 
@@ -202,6 +210,14 @@ gsk_sl_type_vector_get_scalar_type (GskSlType *type)
   return vector->scalar;
 }
 
+static guint
+gsk_sl_type_vector_get_length (GskSlType *type)
+{
+  GskSlTypeVector *vector = (GskSlTypeVector *) type;
+
+  return vector->length;
+}
+
 static gboolean
 gsk_sl_type_vector_can_convert (GskSlType *target,
                                 GskSlType *source)
@@ -222,6 +238,7 @@ static const GskSlTypeClass GSK_SL_TYPE_VECTOR = {
   gsk_sl_type_vector_free,
   gsk_sl_type_vector_print,
   gsk_sl_type_vector_get_scalar_type,
+  gsk_sl_type_vector_get_length,
   gsk_sl_type_vector_can_convert
 };
 
@@ -265,6 +282,14 @@ gsk_sl_type_matrix_get_scalar_type (GskSlType *type)
   return matrix->scalar;
 }
 
+static guint
+gsk_sl_type_matrix_get_length (GskSlType *type)
+{
+  GskSlTypeMatrix *matrix = (GskSlTypeMatrix *) type;
+
+  return matrix->columns;
+}
+
 static gboolean
 gsk_sl_type_matrix_can_convert (GskSlType *target,
                                 GskSlType *source)
@@ -286,6 +311,7 @@ static const GskSlTypeClass GSK_SL_TYPE_MATRIX = {
   gsk_sl_type_matrix_free,
   gsk_sl_type_matrix_print,
   gsk_sl_type_matrix_get_scalar_type,
+  gsk_sl_type_matrix_get_length,
   gsk_sl_type_matrix_can_convert
 };
 
@@ -585,9 +611,38 @@ gsk_sl_type_to_string (const GskSlType *type)
 }
 
 gboolean
+gsk_sl_type_is_scalar (const GskSlType *type)
+{
+  return type->class == &GSK_SL_TYPE_SCALAR;
+}
+
+gboolean
+gsk_sl_type_is_vector (const GskSlType *type)
+{
+  return type->class == &GSK_SL_TYPE_VECTOR;
+}
+
+gboolean
+gsk_sl_type_is_matrix (const GskSlType *type)
+{
+  return type->class == &GSK_SL_TYPE_MATRIX;
+}
+
+GskSlScalarType
+gsk_sl_type_get_scalar_type (const GskSlType *type)
+{
+  return type->class->get_scalar_type (type);
+}
+
+GskSlScalarType
+gsk_sl_type_get_length (const GskSlType *type)
+{
+  return type->class->get_length (type);
+}
+
+gboolean
 gsk_sl_type_can_convert (const GskSlType *target,
                          const GskSlType *source)
 {
   return target->class->can_convert (target, source);
 }
-
