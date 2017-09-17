@@ -162,3 +162,36 @@ gsk_sl_type_print (const GskSlType *type,
       break;
   }
 }
+
+char *
+gsk_sl_type_to_string (const GskSlType *type)
+{
+  GString *string;
+
+  string = g_string_new (NULL);
+  gsk_sl_type_print (type, string);
+  return g_string_free (string, FALSE);
+}
+
+gboolean
+gsk_sl_type_can_convert (const GskSlType *target,
+                         const GskSlType *source)
+{
+  if (target->builtin == source->builtin)
+    return TRUE;
+
+  switch (source->builtin)
+  {
+    case GSK_SL_INT:
+      return target->builtin == GSK_SL_UINT
+          || target->builtin == GSK_SL_FLOAT
+          || target->builtin == GSK_SL_DOUBLE;
+    case GSK_SL_UINT:
+      return target->builtin == GSK_SL_FLOAT
+          || target->builtin == GSK_SL_DOUBLE;
+    case GSK_SL_FLOAT:
+      return target->builtin == GSK_SL_DOUBLE;
+    default:
+      return FALSE;
+  }
+}

@@ -47,6 +47,10 @@ void                    gsk_sl_type_unref                       (GskSlType      
 
 void                    gsk_sl_type_print                       (const GskSlType     *type,
                                                                  GString             *string);
+char *                  gsk_sl_type_to_string                   (const GskSlType     *type);
+
+gboolean                gsk_sl_type_can_convert                 (const GskSlType     *target,
+                                                                 const GskSlType     *source);
 
 G_END_DECLS
 
