@@ -1071,6 +1071,30 @@ gsk_sl_node_parse_function_definition (GskSlNodeProgram  *program,
       case GSK_SL_TOKEN_DVEC2:
       case GSK_SL_TOKEN_DVEC3:
       case GSK_SL_TOKEN_DVEC4:
+      case GSK_SL_TOKEN_MAT2:
+      case GSK_SL_TOKEN_MAT3:
+      case GSK_SL_TOKEN_MAT4:
+      case GSK_SL_TOKEN_DMAT2:
+      case GSK_SL_TOKEN_DMAT3:
+      case GSK_SL_TOKEN_DMAT4:
+      case GSK_SL_TOKEN_MAT2X2:
+      case GSK_SL_TOKEN_MAT2X3:
+      case GSK_SL_TOKEN_MAT2X4:
+      case GSK_SL_TOKEN_MAT3X2:
+      case GSK_SL_TOKEN_MAT3X3:
+      case GSK_SL_TOKEN_MAT3X4:
+      case GSK_SL_TOKEN_MAT4X2:
+      case GSK_SL_TOKEN_MAT4X3:
+      case GSK_SL_TOKEN_MAT4X4:
+      case GSK_SL_TOKEN_DMAT2X2:
+      case GSK_SL_TOKEN_DMAT2X3:
+      case GSK_SL_TOKEN_DMAT2X4:
+      case GSK_SL_TOKEN_DMAT3X2:
+      case GSK_SL_TOKEN_DMAT3X3:
+      case GSK_SL_TOKEN_DMAT3X4:
+      case GSK_SL_TOKEN_DMAT4X2:
+      case GSK_SL_TOKEN_DMAT4X3:
+      case GSK_SL_TOKEN_DMAT4X4:
         node = gsk_sl_node_parse_declaration (program, function->scope, stream);
         if (node)
           {
