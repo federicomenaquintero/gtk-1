@@ -397,6 +397,90 @@ gsk_sl_node_bitwise_type_check (GskSlPreprocessor *stream,
     return gsk_sl_type_get_vector (rscalar, gsk_sl_type_get_length (ltype));
 }
 
+static gboolean
+gsk_sl_node_shift_type_check (GskSlPreprocessor *stream,
+                              GskSlType         *ltype,
+                              GskSlType         *rtype)
+{
+  GskSlScalarType lscalar, rscalar;
+
+  lscalar = gsk_sl_type_get_scalar_type (ltype);
+  if (lscalar != GSK_SL_INT && lscalar != GSK_SL_UINT)
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Left operand is not an integer type.");
+      return FALSE;
+    }
+  rscalar = gsk_sl_type_get_scalar_type (ltype);
+  if (rscalar != GSK_SL_INT && rscalar != GSK_SL_UINT)
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Right operand is not an integer type.");
+      return FALSE;
+    }
+  if (!gsk_sl_type_is_scalar (ltype) && !gsk_sl_type_is_vector (ltype))
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Left operand is neither a scalar nor a vector.");
+      return FALSE;
+    }
+  if (!gsk_sl_type_is_scalar (rtype) && !gsk_sl_type_is_vector (rtype))
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Right operand is neither a scalar nor a vector.");
+      return FALSE;
+    }
+  if (gsk_sl_type_is_scalar (ltype) && gsk_sl_type_is_vector (rtype))
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Right operand to shift cannot be a vector if left operand is a scalar.");
+      return FALSE;
+    }
+  if (gsk_sl_type_is_vector (ltype) && gsk_sl_type_is_vector (rtype) &&
+      gsk_sl_type_get_length (ltype) != gsk_sl_type_get_length (rtype))
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Vector operands do not have the same length.");
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+static gboolean
+gsk_sl_node_relational_type_check (GskSlPreprocessor *stream,
+                                   GskSlType        *ltype,
+                                   GskSlType        *rtype)
+{
+  if (!gsk_sl_type_is_scalar (ltype))
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Left operand to relational operator is not a scalar.");
+      return NULL;
+    }
+  if (gsk_sl_type_get_scalar_type (ltype) == GSK_SL_BOOL)
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Left operand to relational operator must not be bool.");
+      return NULL;
+    }
+  if (!gsk_sl_type_is_scalar (rtype))
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Right operand to relational operator is not a scalar.");
+      return NULL;
+    }
+  if (gsk_sl_type_get_scalar_type (rtype) == GSK_SL_BOOL)
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Right operand to relational operator must not be bool.");
+      return NULL;
+    }
+
+
+  return TRUE;
+}
+
 static GskSlType *
 gsk_sl_node_operation_get_return_type (GskSlNode *node)
 {
@@ -409,22 +493,23 @@ gsk_sl_node_operation_get_return_type (GskSlNode *node)
     case GSK_SL_OPERATION_MOD:
     case GSK_SL_OPERATION_ADD:
     case GSK_SL_OPERATION_SUB:
-    case GSK_SL_OPERATION_LSHIFT:
-    case GSK_SL_OPERATION_RSHIFT:
-    case GSK_SL_OPERATION_LESS:
-    case GSK_SL_OPERATION_GREATER:
-    case GSK_SL_OPERATION_LESS_EQUAL:
-    case GSK_SL_OPERATION_GREATER_EQUAL:
-    case GSK_SL_OPERATION_EQUAL:
-    case GSK_SL_OPERATION_NOT_EQUAL:
       g_assert_not_reached ();
       return NULL;
+    case GSK_SL_OPERATION_LSHIFT:
+    case GSK_SL_OPERATION_RSHIFT:
+      return gsk_sl_node_get_return_type (operation->left);
     case GSK_SL_OPERATION_AND:
     case GSK_SL_OPERATION_XOR:
     case GSK_SL_OPERATION_OR:
       return gsk_sl_node_bitwise_type_check (NULL,
                                              gsk_sl_node_get_return_type (operation->left),
                                              gsk_sl_node_get_return_type (operation->right));
+    case GSK_SL_OPERATION_LESS:
+    case GSK_SL_OPERATION_GREATER:
+    case GSK_SL_OPERATION_LESS_EQUAL:
+    case GSK_SL_OPERATION_GREATER_EQUAL:
+    case GSK_SL_OPERATION_EQUAL:
+    case GSK_SL_OPERATION_NOT_EQUAL:
     case GSK_SL_OPERATION_LOGICAL_AND:
     case GSK_SL_OPERATION_LOGICAL_XOR:
     case GSK_SL_OPERATION_LOGICAL_OR:
@@ -783,11 +868,158 @@ gsk_sl_node_parse_primary_expression (GskSlNodeProgram  *program,
 }
 
 static GskSlNode *
-gsk_sl_node_parse_equality_expression (GskSlNodeProgram  *program,
+gsk_sl_node_parse_additive_expression (GskSlNodeProgram  *program,
                                        GskSlScope        *scope,
                                        GskSlPreprocessor *stream)
 {
   return gsk_sl_node_parse_primary_expression (program, scope, stream);
+}
+
+static GskSlNode *
+gsk_sl_node_parse_shift_expression (GskSlNodeProgram  *program,
+                                    GskSlScope        *scope,
+                                    GskSlPreprocessor *stream)
+{
+  const GskSlToken *token;
+  GskSlNode *node;
+  GskSlNodeOperation *operation;
+  GskSlOperation op;
+
+  node = gsk_sl_node_parse_additive_expression (program, scope, stream);
+  if (node == NULL)
+    return NULL;
+
+  while (TRUE)
+    {
+      token = gsk_sl_preprocessor_get (stream);
+      if (gsk_sl_token_is (token, GSK_SL_TOKEN_LEFT_OP))
+        op = GSK_SL_OPERATION_LSHIFT;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_RIGHT_OP))
+        op = GSK_SL_OPERATION_RSHIFT;
+      else
+        return node;
+
+      operation = gsk_sl_node_new (GskSlNodeOperation, &GSK_SL_NODE_OPERATION);
+      operation->left = node;
+      operation->op = op;
+      gsk_sl_preprocessor_consume (stream, (GskSlNode *) operation);
+      operation->right = gsk_sl_node_parse_additive_expression (program, scope, stream);
+      if (operation->right == NULL)
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else if (!gsk_sl_node_shift_type_check (stream,
+                                              gsk_sl_node_get_return_type (operation->left),
+                                              gsk_sl_node_get_return_type (operation->right)))
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else
+        {
+          node = (GskSlNode *) operation;
+        }
+    }
+
+  return node;
+}
+
+static GskSlNode *
+gsk_sl_node_parse_relational_expression (GskSlNodeProgram  *program,
+                                         GskSlScope        *scope,
+                                         GskSlPreprocessor *stream)
+{
+  const GskSlToken *token;
+  GskSlNode *node;
+  GskSlNodeOperation *operation;
+  GskSlOperation op;
+
+  node = gsk_sl_node_parse_shift_expression (program, scope, stream);
+  if (node == NULL)
+    return NULL;
+
+  while (TRUE)
+    {
+      token = gsk_sl_preprocessor_get (stream);
+      if (gsk_sl_token_is (token, GSK_SL_TOKEN_LEFT_ANGLE))
+        op = GSK_SL_OPERATION_LESS;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_RIGHT_ANGLE))
+        op = GSK_SL_OPERATION_GREATER;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_LE_OP))
+        op = GSK_SL_OPERATION_LESS_EQUAL;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_GE_OP))
+        op = GSK_SL_OPERATION_GREATER_EQUAL;
+      else
+        return node;
+
+      operation = gsk_sl_node_new (GskSlNodeOperation, &GSK_SL_NODE_OPERATION);
+      operation->left = node;
+      operation->op = op;
+      gsk_sl_preprocessor_consume (stream, (GskSlNode *) operation);
+      operation->right = gsk_sl_node_parse_shift_expression (program, scope, stream);
+      if (operation->right == NULL)
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else if (!gsk_sl_node_relational_type_check (stream,
+                                                   gsk_sl_node_get_return_type (operation->left),
+                                                   gsk_sl_node_get_return_type (operation->right)))
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else
+        {
+          node = (GskSlNode *) operation;
+        }
+    }
+
+  return node;
+}
+
+static GskSlNode *
+gsk_sl_node_parse_equality_expression (GskSlNodeProgram  *program,
+                                       GskSlScope        *scope,
+                                       GskSlPreprocessor *stream)
+{
+  const GskSlToken *token;
+  GskSlNode *node;
+  GskSlNodeOperation *operation;
+  GskSlOperation op;
+
+  node = gsk_sl_node_parse_relational_expression (program, scope, stream);
+  if (node == NULL)
+    return NULL;
+
+  while (TRUE)
+    {
+      token = gsk_sl_preprocessor_get (stream);
+      if (gsk_sl_token_is (token, GSK_SL_TOKEN_EQ_OP))
+        op = GSK_SL_OPERATION_EQUAL;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_NE_OP))
+        op = GSK_SL_OPERATION_NOT_EQUAL;
+      else
+        return node;
+
+      operation = gsk_sl_node_new (GskSlNodeOperation, &GSK_SL_NODE_OPERATION);
+      operation->left = node;
+      operation->op = op;
+      gsk_sl_preprocessor_consume (stream, (GskSlNode *) operation);
+      operation->right = gsk_sl_node_parse_relational_expression (program, scope, stream);
+      if (operation->right == NULL)
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else
+        {
+          node = (GskSlNode *) operation;
+        }
+    }
+
+  return node;
 }
 
 static GskSlNode *
