@@ -25,23 +25,134 @@
 
 #include <string.h>
 
+#define N_SCALAR_TYPES 6
+
+typedef struct _GskSlTypeClass GskSlTypeClass;
+
 struct _GskSlType
 {
+  const GskSlTypeClass *class;
+
   int ref_count;
+};
+
+struct _GskSlTypeClass {
+  void                  (* free)                                (GskSlType           *type);
+
+  void                  (* print)                               (GskSlType           *type,
+                                                                 GString             *string);
+  GskSlScalarType       (* get_scalar_type)                     (GskSlType           *type);
+  gboolean              (* can_convert)                         (GskSlType           *target,
+                                                                 GskSlType           *source);
+};
+
+static gboolean
+gsk_sl_scalar_type_can_convert (GskSlScalarType target,
+                                GskSlScalarType source)
+{
+  if (target == source)
+    return TRUE;
+
+  switch (source)
+  {
+    case GSK_SL_INT:
+      return target == GSK_SL_UINT
+          || target == GSK_SL_FLOAT
+          || target == GSK_SL_DOUBLE;
+    case GSK_SL_UINT:
+      return target == GSK_SL_FLOAT
+          || target == GSK_SL_DOUBLE;
+    case GSK_SL_FLOAT:
+      return target == GSK_SL_DOUBLE;
+    default:
+      return FALSE;
+  }
+}
+
+/* SCALAR */
+
+typedef struct _GskSlTypeScalar GskSlTypeScalar;
+
+struct _GskSlTypeScalar {
+  GskSlType parent;
 
   GskSlScalarType scalar;
 };
 
-#define N_SCALAR_TYPES 6
+static void
+gsk_sl_type_scalar_free (GskSlType *type)
+{
+  g_assert_not_reached ();
+}
 
-static GskSlType
+static void
+gsk_sl_type_scalar_print (GskSlType *type,
+                          GString   *string)
+{
+  GskSlTypeScalar *scalar = (GskSlTypeScalar *) type;
+
+  switch (scalar->scalar)
+  {
+    case GSK_SL_VOID:
+      g_string_append (string, "void");
+      break;
+    case GSK_SL_FLOAT:
+      g_string_append (string, "float");
+      break;
+    case GSK_SL_DOUBLE:
+      g_string_append (string, "double");
+      break;
+    case GSK_SL_INT:
+      g_string_append (string, "int");
+      break;
+    case GSK_SL_UINT:
+      g_string_append (string, "uint");
+      break;
+    case GSK_SL_BOOL:
+      g_string_append (string, "bool");
+      break;
+    default:
+      g_assert_not_reached ();
+      break;
+  }
+}
+
+static GskSlScalarType
+gsk_sl_type_scalar_get_scalar_type (GskSlType *type)
+{
+  GskSlTypeScalar *scalar = (GskSlTypeScalar *) type;
+
+  return scalar->scalar;
+}
+
+static gboolean
+gsk_sl_type_scalar_can_convert (GskSlType *target,
+                                GskSlType *source)
+{
+  GskSlTypeScalar *target_scalar = (GskSlTypeScalar *) target;
+  GskSlTypeScalar *source_scalar = (GskSlTypeScalar *) source;
+
+  if (target->class != source->class)
+    return FALSE;
+  
+  return gsk_sl_scalar_type_can_convert (target_scalar->scalar, source_scalar->scalar);
+}
+
+static const GskSlTypeClass GSK_SL_TYPE_SCALAR = {
+  gsk_sl_type_scalar_free,
+  gsk_sl_type_scalar_print,
+  gsk_sl_type_scalar_get_scalar_type,
+  gsk_sl_type_scalar_can_convert
+};
+
+static GskSlTypeScalar
 builtin_types[N_SCALAR_TYPES] = {
-  [GSK_SL_VOID] = { 1, GSK_SL_VOID },
-  [GSK_SL_FLOAT] = { 1, GSK_SL_FLOAT },
-  [GSK_SL_DOUBLE] = { 1, GSK_SL_DOUBLE },
-  [GSK_SL_INT] = { 1, GSK_SL_INT },
-  [GSK_SL_UINT] = { 1, GSK_SL_UINT },
-  [GSK_SL_BOOL] = { 1, GSK_SL_BOOL },
+  [GSK_SL_VOID] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_VOID },
+  [GSK_SL_FLOAT] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_FLOAT },
+  [GSK_SL_DOUBLE] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_DOUBLE },
+  [GSK_SL_INT] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_INT },
+  [GSK_SL_UINT] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_UINT },
+  [GSK_SL_BOOL] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_BOOL },
 };
 
 GskSlType *
@@ -87,7 +198,7 @@ gsk_sl_type_get_scalar (GskSlScalarType scalar)
 {
   g_assert (scalar < N_SCALAR_TYPES);
 
-  return &builtin_types[scalar];
+  return &builtin_types[scalar].parent;
 }
 
 GskSlType *
@@ -117,31 +228,7 @@ void
 gsk_sl_type_print (const GskSlType *type,
                    GString         *string)
 {
-  switch (type->scalar)
-  {
-    case GSK_SL_VOID:
-      g_string_append (string, "void");
-      break;
-    case GSK_SL_FLOAT:
-      g_string_append (string, "float");
-      break;
-    case GSK_SL_DOUBLE:
-      g_string_append (string, "double");
-      break;
-    case GSK_SL_INT:
-      g_string_append (string, "int");
-      break;
-    case GSK_SL_UINT:
-      g_string_append (string, "uint");
-      break;
-    case GSK_SL_BOOL:
-      g_string_append (string, "bool");
-      break;
-    /* add more above */
-    default:
-      g_assert_not_reached ();
-      break;
-  }
+  return type->class->print (type, string);
 }
 
 char *
@@ -158,21 +245,6 @@ gboolean
 gsk_sl_type_can_convert (const GskSlType *target,
                          const GskSlType *source)
 {
-  if (target->scalar == source->scalar)
-    return TRUE;
-
-  switch (source->scalar)
-  {
-    case GSK_SL_INT:
-      return target->scalar == GSK_SL_UINT
-          || target->scalar == GSK_SL_FLOAT
-          || target->scalar == GSK_SL_DOUBLE;
-    case GSK_SL_UINT:
-      return target->scalar == GSK_SL_FLOAT
-          || target->scalar == GSK_SL_DOUBLE;
-    case GSK_SL_FLOAT:
-      return target->scalar == GSK_SL_DOUBLE;
-    default:
-      return FALSE;
-  }
+  return target->class->can_convert (target, source);
 }
+
