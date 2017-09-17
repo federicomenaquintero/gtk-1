@@ -31,16 +31,11 @@ typedef enum {
   GSK_SL_DOUBLE,
   GSK_SL_INT,
   GSK_SL_UINT,
-  GSK_SL_BOOL,
-  GSK_SL_VEC2,
-  GSK_SL_VEC3,
-  GSK_SL_VEC4,
-  /* add more above */
-  GSK_SL_N_BUILTIN_TYPES
-} GskSlBuiltinType;
+  GSK_SL_BOOL
+} GskSlScalarType;
 
 GskSlType *             gsk_sl_type_new_parse                   (GskSlPreprocessor   *stream);
-GskSlType *             gsk_sl_type_get_builtin                 (GskSlBuiltinType     builtin);
+GskSlType *             gsk_sl_type_get_scalar                  (GskSlScalarType      scalar);
 
 GskSlType *             gsk_sl_type_ref                         (GskSlType           *type);
 void                    gsk_sl_type_unref                       (GskSlType           *type);

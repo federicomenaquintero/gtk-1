@@ -509,7 +509,7 @@ typedef struct _GskSlNodeConstant GskSlNodeConstant;
 struct _GskSlNodeConstant {
   GskSlNode parent;
 
-  GskSlBuiltinType type;
+  GskSlScalarType type;
   union {
     gint32       i32;
     guint32      u32;
@@ -574,7 +574,7 @@ gsk_sl_node_constant_get_return_type (GskSlNode *node)
 {
   GskSlNodeConstant *constant = (GskSlNodeConstant *) node;
 
-  return gsk_sl_type_get_builtin (constant->type);
+  return gsk_sl_type_get_scalar (constant->type);
 }
 
 static gboolean
@@ -748,7 +748,7 @@ gsk_sl_node_parse_logical_and_expression (GskSlNodeProgram  *program,
           gsk_sl_node_ref (node);
           gsk_sl_node_unref ((GskSlNode *) operation);
         }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_builtin (GSK_SL_BOOL),
+      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
                                          gsk_sl_node_get_return_type (operation->right)))
         {
           char *type_name = gsk_sl_type_to_string (gsk_sl_node_get_return_type (operation->right));
@@ -757,7 +757,7 @@ gsk_sl_node_parse_logical_and_expression (GskSlNodeProgram  *program,
           gsk_sl_node_ref (node);
           gsk_sl_node_unref ((GskSlNode *) operation);
         }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_builtin (GSK_SL_BOOL),
+      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
                                          gsk_sl_node_get_return_type (node)))
         {
           char *type_name = gsk_sl_type_to_string (gsk_sl_node_get_return_type (node));
@@ -805,7 +805,7 @@ gsk_sl_node_parse_logical_xor_expression (GskSlNodeProgram  *program,
           gsk_sl_node_ref (node);
           gsk_sl_node_unref ((GskSlNode *) operation);
         }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_builtin (GSK_SL_BOOL),
+      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
                                          gsk_sl_node_get_return_type (operation->right)))
         {
           char *type_name = gsk_sl_type_to_string (gsk_sl_node_get_return_type (operation->right));
@@ -814,7 +814,7 @@ gsk_sl_node_parse_logical_xor_expression (GskSlNodeProgram  *program,
           gsk_sl_node_ref (node);
           gsk_sl_node_unref ((GskSlNode *) operation);
         }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_builtin (GSK_SL_BOOL),
+      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
                                          gsk_sl_node_get_return_type (node)))
         {
           char *type_name = gsk_sl_type_to_string (gsk_sl_node_get_return_type (node));
@@ -862,7 +862,7 @@ gsk_sl_node_parse_logical_or_expression (GskSlNodeProgram  *program,
           gsk_sl_node_ref (node);
           gsk_sl_node_unref ((GskSlNode *) operation);
         }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_builtin (GSK_SL_BOOL),
+      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
                                          gsk_sl_node_get_return_type (operation->right)))
         {
           char *type_name = gsk_sl_type_to_string (gsk_sl_node_get_return_type (operation->right));
@@ -871,7 +871,7 @@ gsk_sl_node_parse_logical_or_expression (GskSlNodeProgram  *program,
           gsk_sl_node_ref (node);
           gsk_sl_node_unref ((GskSlNode *) operation);
         }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_builtin (GSK_SL_BOOL),
+      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
                                          gsk_sl_node_get_return_type (node)))
         {
           char *type_name = gsk_sl_type_to_string (gsk_sl_node_get_return_type (node));

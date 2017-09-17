@@ -29,26 +29,25 @@ struct _GskSlType
 {
   int ref_count;
 
-  GskSlBuiltinType builtin;
+  GskSlScalarType scalar;
 };
 
+#define N_SCALAR_TYPES 6
+
 static GskSlType
-builtin_types[GSK_SL_N_BUILTIN_TYPES] = {
+builtin_types[N_SCALAR_TYPES] = {
   [GSK_SL_VOID] = { 1, GSK_SL_VOID },
   [GSK_SL_FLOAT] = { 1, GSK_SL_FLOAT },
   [GSK_SL_DOUBLE] = { 1, GSK_SL_DOUBLE },
   [GSK_SL_INT] = { 1, GSK_SL_INT },
   [GSK_SL_UINT] = { 1, GSK_SL_UINT },
   [GSK_SL_BOOL] = { 1, GSK_SL_BOOL },
-  [GSK_SL_VEC2] = { 1, GSK_SL_VEC2 },
-  [GSK_SL_VEC3] = { 1, GSK_SL_VEC3 },
-  [GSK_SL_VEC4] = { 1, GSK_SL_VEC4 }
 };
 
 GskSlType *
 gsk_sl_type_new_parse (GskSlPreprocessor *stream)
 {
-  GskSlBuiltinType builtin;
+  GskSlType *type;
   const GskSlToken *token;
 
   token = gsk_sl_preprocessor_get (stream);
@@ -56,31 +55,22 @@ gsk_sl_type_new_parse (GskSlPreprocessor *stream)
   switch (token->type)
   {
     case GSK_SL_TOKEN_VOID:
-      builtin = GSK_SL_VOID;
+      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_VOID));
       break;
     case GSK_SL_TOKEN_FLOAT:
-      builtin = GSK_SL_FLOAT;
+      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_FLOAT));
       break;
     case GSK_SL_TOKEN_DOUBLE:
-      builtin = GSK_SL_DOUBLE;
+      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_DOUBLE));
       break;
     case GSK_SL_TOKEN_INT:
-      builtin = GSK_SL_INT;
+      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_INT));
       break;
     case GSK_SL_TOKEN_UINT:
-      builtin = GSK_SL_UINT;
+      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_UINT));
       break;
     case GSK_SL_TOKEN_BOOL:
-      builtin = GSK_SL_BOOL;
-      break;
-    case GSK_SL_TOKEN_VEC2:
-      builtin = GSK_SL_VEC2;
-      break;
-    case GSK_SL_TOKEN_VEC3:
-      builtin = GSK_SL_VEC3;
-      break;
-    case GSK_SL_TOKEN_VEC4:
-      builtin = GSK_SL_VEC4;
+      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_BOOL));
       break;
     default:
       gsk_sl_preprocessor_error (stream, "Expected type specifier");
@@ -88,15 +78,16 @@ gsk_sl_type_new_parse (GskSlPreprocessor *stream)
   }
 
   gsk_sl_preprocessor_consume (stream, NULL);
-  return gsk_sl_type_ref (gsk_sl_type_get_builtin (builtin));
+
+  return type;
 }
 
 GskSlType *
-gsk_sl_type_get_builtin (GskSlBuiltinType builtin)
+gsk_sl_type_get_scalar (GskSlScalarType scalar)
 {
-  g_assert (builtin < GSK_SL_N_BUILTIN_TYPES);
+  g_assert (scalar < N_SCALAR_TYPES);
 
-  return &builtin_types[builtin];
+  return &builtin_types[scalar];
 }
 
 GskSlType *
@@ -126,7 +117,7 @@ void
 gsk_sl_type_print (const GskSlType *type,
                    GString         *string)
 {
-  switch (type->builtin)
+  switch (type->scalar)
   {
     case GSK_SL_VOID:
       g_string_append (string, "void");
@@ -146,17 +137,7 @@ gsk_sl_type_print (const GskSlType *type,
     case GSK_SL_BOOL:
       g_string_append (string, "bool");
       break;
-    case GSK_SL_VEC2:
-      g_string_append (string, "vec2");
-      break;
-    case GSK_SL_VEC3:
-      g_string_append (string, "vec3");
-      break;
-    case GSK_SL_VEC4:
-      g_string_append (string, "vec4");
-      break;
     /* add more above */
-    case GSK_SL_N_BUILTIN_TYPES:
     default:
       g_assert_not_reached ();
       break;
@@ -177,20 +158,20 @@ gboolean
 gsk_sl_type_can_convert (const GskSlType *target,
                          const GskSlType *source)
 {
-  if (target->builtin == source->builtin)
+  if (target->scalar == source->scalar)
     return TRUE;
 
-  switch (source->builtin)
+  switch (source->scalar)
   {
     case GSK_SL_INT:
-      return target->builtin == GSK_SL_UINT
-          || target->builtin == GSK_SL_FLOAT
-          || target->builtin == GSK_SL_DOUBLE;
+      return target->scalar == GSK_SL_UINT
+          || target->scalar == GSK_SL_FLOAT
+          || target->scalar == GSK_SL_DOUBLE;
     case GSK_SL_UINT:
-      return target->builtin == GSK_SL_FLOAT
-          || target->builtin == GSK_SL_DOUBLE;
+      return target->scalar == GSK_SL_FLOAT
+          || target->scalar == GSK_SL_DOUBLE;
     case GSK_SL_FLOAT:
-      return target->builtin == GSK_SL_DOUBLE;
+      return target->scalar == GSK_SL_DOUBLE;
     default:
       return FALSE;
   }
