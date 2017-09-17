@@ -350,6 +350,174 @@ gsk_sl_node_operation_print (GskSlNode *node,
 }
 
 static GskSlType *
+gsk_sl_node_arithmetic_type_check (GskSlPreprocessor *stream,
+                                   gboolean           multiply,
+                                   GskSlType         *ltype,
+                                   GskSlType         *rtype)
+{
+  GskSlScalarType scalar;
+
+  if (gsk_sl_scalar_type_can_convert (gsk_sl_type_get_scalar_type (ltype),
+                                      gsk_sl_type_get_scalar_type (rtype)))
+    scalar = gsk_sl_type_get_scalar_type (ltype);
+  else if (gsk_sl_scalar_type_can_convert (gsk_sl_type_get_scalar_type (rtype),
+                                           gsk_sl_type_get_scalar_type (ltype)))
+    scalar = gsk_sl_type_get_scalar_type (rtype);
+  else
+    {
+      if (stream)
+        {
+          char *lstr = gsk_sl_type_to_string (ltype);
+          char *rstr = gsk_sl_type_to_string (rtype);
+          gsk_sl_preprocessor_error (stream, "Operand types %s and %s do not share compatible scalar types.", lstr, rstr);
+          g_free (lstr);
+          g_free (rstr);
+        }
+      return NULL;
+    }
+
+  if (gsk_sl_type_is_matrix (ltype))
+    {
+      if (gsk_sl_type_is_matrix (rtype))
+        {
+          if (multiply)
+            {
+              if (gsk_sl_type_get_length (ltype) != gsk_sl_type_get_length (gsk_sl_type_get_index_type (rtype)))
+                {
+                  if (stream)
+                    gsk_sl_preprocessor_error (stream, "Matrices to multiplication have incompatible dimensions.");
+                  return NULL;
+                }
+              return gsk_sl_type_get_matrix (scalar,
+                                             gsk_sl_type_get_length (gsk_sl_type_get_index_type (ltype)),
+                                             gsk_sl_type_get_length (rtype));
+            }
+          else
+            {
+              if (gsk_sl_type_can_convert (ltype, rtype))
+                {
+                  return ltype;
+                }
+              else if (gsk_sl_type_can_convert (rtype, ltype))
+                {
+                  return rtype;
+                }
+              else
+                {
+                  if (stream)
+                    gsk_sl_preprocessor_error (stream, "Matrices to arithmetic operation have different size.");
+                  return NULL;
+                }
+            }
+        }
+      else if (gsk_sl_type_is_vector (rtype))
+        {
+          if (multiply)
+            {
+              if (gsk_sl_type_get_length (ltype) != gsk_sl_type_get_length (rtype))
+                {
+                  if (stream)
+                    gsk_sl_preprocessor_error (stream, "Matrix column count doesn't match vector length.");
+                  return NULL;
+                }
+              return gsk_sl_type_get_vector (scalar, gsk_sl_type_get_length (gsk_sl_type_get_index_type (ltype)));
+            }
+          else
+            {
+              if (stream)
+                gsk_sl_preprocessor_error (stream, "Cannot perform arithmetic operation between matrix and vector.");
+              return NULL;
+            }
+        }
+      else if (gsk_sl_type_is_scalar (rtype))
+        {
+          return gsk_sl_type_get_matrix (scalar,
+                                         gsk_sl_type_get_length (ltype),
+                                         gsk_sl_type_get_length (gsk_sl_type_get_index_type (ltype)));
+        }
+      else
+        {
+          if (stream)
+            gsk_sl_preprocessor_error (stream, "Right operand is incompatible type for arithemtic operation.");
+          return NULL;
+        }
+    }
+  else if (gsk_sl_type_is_vector (ltype))
+    {
+      if (gsk_sl_type_is_matrix (rtype))
+        {
+          if (multiply)
+            {
+              if (gsk_sl_type_get_length (ltype) != gsk_sl_type_get_length (gsk_sl_type_get_index_type (rtype)))
+                {
+                  if (stream)
+                    gsk_sl_preprocessor_error (stream, "Vector length doesn't match matrix row count.");
+                  return NULL;
+                }
+              return gsk_sl_type_get_vector (scalar, gsk_sl_type_get_length (rtype));
+            }
+          else
+            {
+              if (stream)
+                gsk_sl_preprocessor_error (stream, "Cannot perform arithmetic operation between vector and matrix.");
+              return NULL;
+            }
+        }
+      else if (gsk_sl_type_is_vector (rtype))
+        {
+          if (gsk_sl_type_get_length (ltype) != gsk_sl_type_get_length (rtype))
+            {
+              if (stream)
+                gsk_sl_preprocessor_error (stream, "Vector operands to arithmetic operation have different length.");
+              return NULL;
+            }
+          return gsk_sl_type_get_vector (scalar, gsk_sl_type_get_length (ltype));
+        }
+      else if (gsk_sl_type_is_scalar (rtype))
+        {
+          return gsk_sl_type_get_vector (scalar,
+                                         gsk_sl_type_get_length (ltype));
+        }
+      else
+        {
+          if (stream)
+            gsk_sl_preprocessor_error (stream, "Right operand is incompatible type for arithemtic operation.");
+          return NULL;
+        }
+    }
+  else if (gsk_sl_type_is_scalar (ltype))
+    {
+      if (gsk_sl_type_is_matrix (rtype))
+        {
+          return gsk_sl_type_get_matrix (scalar,
+                                         gsk_sl_type_get_length (rtype),
+                                         gsk_sl_type_get_length (gsk_sl_type_get_index_type (rtype)));
+        }
+      else if (gsk_sl_type_is_vector (rtype))
+        {
+          return gsk_sl_type_get_vector (scalar,
+                                         gsk_sl_type_get_length (rtype));
+        }
+      else if (gsk_sl_type_is_scalar (rtype))
+        {
+          return gsk_sl_type_get_scalar (scalar);
+        }
+      else
+        {
+          if (stream)
+            gsk_sl_preprocessor_error (stream, "Right operand is incompatible type for arithemtic operation.");
+          return NULL;
+        }
+    }
+  else
+    {
+      if (stream)
+        gsk_sl_preprocessor_error (stream, "Left operand is incompatible type for arithemtic operation.");
+      return NULL;
+    }
+}
+
+static GskSlType *
 gsk_sl_node_bitwise_type_check (GskSlPreprocessor *stream,
                                 GskSlType         *ltype,
                                 GskSlType         *rtype)
@@ -489,15 +657,21 @@ gsk_sl_node_operation_get_return_type (GskSlNode *node)
   switch (operation->op)
   {
     case GSK_SL_OPERATION_MUL:
+      return gsk_sl_node_arithmetic_type_check (NULL,
+                                                TRUE,
+                                                gsk_sl_node_get_return_type (operation->left),
+                                                gsk_sl_node_get_return_type (operation->right));
     case GSK_SL_OPERATION_DIV:
-    case GSK_SL_OPERATION_MOD:
     case GSK_SL_OPERATION_ADD:
     case GSK_SL_OPERATION_SUB:
-      g_assert_not_reached ();
-      return NULL;
+      return gsk_sl_node_arithmetic_type_check (NULL,
+                                                FALSE,
+                                                gsk_sl_node_get_return_type (operation->left),
+                                                gsk_sl_node_get_return_type (operation->right));
     case GSK_SL_OPERATION_LSHIFT:
     case GSK_SL_OPERATION_RSHIFT:
       return gsk_sl_node_get_return_type (operation->left);
+    case GSK_SL_OPERATION_MOD:
     case GSK_SL_OPERATION_AND:
     case GSK_SL_OPERATION_XOR:
     case GSK_SL_OPERATION_OR:
@@ -868,11 +1042,120 @@ gsk_sl_node_parse_primary_expression (GskSlNodeProgram  *program,
 }
 
 static GskSlNode *
+gsk_sl_node_parse_unary_expression (GskSlNodeProgram  *program,
+                                    GskSlScope        *scope,
+                                    GskSlPreprocessor *stream)
+{
+  return gsk_sl_node_parse_primary_expression (program, scope, stream);
+}
+
+static GskSlNode *
+gsk_sl_node_parse_multiplicative_expression (GskSlNodeProgram  *program,
+                                             GskSlScope        *scope,
+                                             GskSlPreprocessor *stream)
+{
+  const GskSlToken *token;
+  GskSlNode *node;
+  GskSlNodeOperation *operation;
+  GskSlOperation op;
+
+  node = gsk_sl_node_parse_unary_expression (program, scope, stream);
+  if (node == NULL)
+    return NULL;
+
+  while (TRUE)
+    {
+      token = gsk_sl_preprocessor_get (stream);
+      if (gsk_sl_token_is (token, GSK_SL_TOKEN_STAR))
+        op = GSK_SL_OPERATION_MUL;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_SLASH))
+        op = GSK_SL_OPERATION_DIV;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_PERCENT))
+        op = GSK_SL_OPERATION_MOD;
+      else
+        return node;
+
+      operation = gsk_sl_node_new (GskSlNodeOperation, &GSK_SL_NODE_OPERATION);
+      operation->left = node;
+      operation->op = op;
+      gsk_sl_preprocessor_consume (stream, (GskSlNode *) operation);
+      operation->right = gsk_sl_node_parse_unary_expression (program, scope, stream);
+      if (operation->right == NULL)
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else if ((op == GSK_SL_OPERATION_MOD &&
+                !gsk_sl_node_bitwise_type_check (stream,
+                                                 gsk_sl_node_get_return_type (operation->left),
+                                                 gsk_sl_node_get_return_type (operation->right))) ||
+               (op != GSK_SL_OPERATION_MOD &&
+                !gsk_sl_node_arithmetic_type_check (stream,
+                                                    FALSE,
+                                                    gsk_sl_node_get_return_type (operation->left),
+                                                    gsk_sl_node_get_return_type (operation->right))))
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else
+        {
+          node = (GskSlNode *) operation;
+        }
+    }
+
+  return node;
+}
+
+static GskSlNode *
 gsk_sl_node_parse_additive_expression (GskSlNodeProgram  *program,
                                        GskSlScope        *scope,
                                        GskSlPreprocessor *stream)
 {
-  return gsk_sl_node_parse_primary_expression (program, scope, stream);
+  const GskSlToken *token;
+  GskSlNode *node;
+  GskSlNodeOperation *operation;
+  GskSlOperation op;
+
+  node = gsk_sl_node_parse_multiplicative_expression (program, scope, stream);
+  if (node == NULL)
+    return NULL;
+
+  while (TRUE)
+    {
+      token = gsk_sl_preprocessor_get (stream);
+      if (gsk_sl_token_is (token, GSK_SL_TOKEN_PLUS))
+        op = GSK_SL_OPERATION_ADD;
+      else if (gsk_sl_token_is (token, GSK_SL_TOKEN_DASH))
+        op = GSK_SL_OPERATION_SUB;
+      else
+        return node;
+
+      operation = gsk_sl_node_new (GskSlNodeOperation, &GSK_SL_NODE_OPERATION);
+      operation->left = node;
+      operation->op = op;
+      gsk_sl_preprocessor_consume (stream, (GskSlNode *) operation);
+      operation->right = gsk_sl_node_parse_additive_expression (program, scope, stream);
+      if (operation->right == NULL)
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else if (!gsk_sl_node_arithmetic_type_check (stream,
+                                                   FALSE,
+                                                   gsk_sl_node_get_return_type (operation->left),
+                                                   gsk_sl_node_get_return_type (operation->right)))
+        {
+          gsk_sl_node_ref (node);
+          gsk_sl_node_unref ((GskSlNode *) operation);
+        }
+      else
+        {
+          node = (GskSlNode *) operation;
+        }
+    }
+
+  return node;
 }
 
 static GskSlNode *
