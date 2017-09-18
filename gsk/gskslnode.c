@@ -907,6 +907,70 @@ static const GskSlNodeClass GSK_SL_NODE_FUNCTION_CALL = {
   gsk_sl_node_function_call_is_constant
 };
 
+/* RETURN */
+
+typedef struct _GskSlNodeReturn GskSlNodeReturn;
+
+struct _GskSlNodeReturn {
+  GskSlNode parent;
+
+  GskSlNode *value;
+};
+
+static void
+gsk_sl_node_return_free (GskSlNode *node)
+{
+  GskSlNodeReturn *return_node = (GskSlNodeReturn *) node;
+
+  if (return_node->value)
+    gsk_sl_node_unref (return_node->value);
+
+  g_slice_free (GskSlNodeReturn, return_node);
+}
+
+static void
+gsk_sl_node_return_print (GskSlNode *node,
+                          GString   *string)
+{
+  GskSlNodeReturn *return_node = (GskSlNodeReturn *) node;
+
+  g_string_append (string, "return");
+  if (return_node->value)
+    {
+      g_string_append (string, " ");
+      gsk_sl_node_print (return_node->value, string);
+    }
+}
+
+static GskSlType *
+gsk_sl_node_return_get_return_type (GskSlNode *node)
+{
+  GskSlNodeReturn *return_node = (GskSlNodeReturn *) node;
+
+  if (return_node->value)
+    return gsk_sl_node_get_return_type (return_node->value);
+  else
+    return NULL;
+}
+
+static gboolean
+gsk_sl_node_return_is_constant (GskSlNode *node)
+{
+  GskSlNodeReturn *return_node = (GskSlNodeReturn *) node;
+
+  if (return_node->value)
+    return gsk_sl_node_is_constant (return_node->value);
+  else
+    return TRUE;
+}
+
+static const GskSlNodeClass GSK_SL_NODE_RETURN = {
+  gsk_sl_node_return_free,
+  gsk_sl_node_return_print,
+  gsk_sl_node_return_get_return_type,
+  gsk_sl_node_return_is_constant
+};
+
 /* CONSTANT */
 
 typedef struct _GskSlNodeConstant GskSlNodeConstant;
@@ -2054,6 +2118,47 @@ gsk_sl_node_parse_function_definition (GskSlNodeProgram  *program,
               function->statements = g_slist_append (function->statements, node);
             }
         }
+        break;
+
+      case GSK_SL_TOKEN_RETURN:
+        {
+          GskSlNodeReturn *return_node;
+
+          return_node = gsk_sl_node_new (GskSlNodeReturn, &GSK_SL_NODE_RETURN);
+          gsk_sl_preprocessor_consume (stream, (GskSlNode *) return_node);
+          token = gsk_sl_preprocessor_get (stream);
+          if (!gsk_sl_token_is (token, GSK_SL_TOKEN_SEMICOLON))
+            {
+              return_node->value = gsk_sl_node_parse_expression (program, function->scope, stream);
+              if (return_node->value == NULL)
+                {
+                  gsk_sl_node_unref ((GskSlNode *) return_node);
+                  break;
+                }
+              if (function->return_type == NULL)
+                {
+                  gsk_sl_preprocessor_error (stream, "Cannot return a value from a void function.");
+                  gsk_sl_node_unref ((GskSlNode *) return_node);
+                  break;
+                }
+              else if (!gsk_sl_type_can_convert (function->return_type, gsk_sl_node_get_return_type (return_node->value)))
+                {
+                  gsk_sl_preprocessor_error (stream, "Cannot convert return type to function type.");
+                  gsk_sl_node_unref ((GskSlNode *) return_node);
+                  break;
+                }
+              }
+            else
+              {
+                if (function->return_type != NULL)
+                  {
+                    gsk_sl_preprocessor_error (stream, "Return statement does not return a value.");
+                    gsk_sl_node_unref ((GskSlNode *) return_node);
+                    break;
+                  }
+              }
+            function->statements = g_slist_append (function->statements, return_node);
+          }
         break;
 
       default:
