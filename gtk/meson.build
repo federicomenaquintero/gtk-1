@@ -1018,6 +1018,7 @@ gtk_tools = [
   ['gtk4-encode-symbolic-svg', ['encodesymbolic.c']],
   ['gtk4-launch', ['gtk-launch.c']],
   ['gtk4-query-immodules', ['queryimmodules.c', 'gtkutils.c']],
+  ['gtk4-glsl', ['glsl.c']],
 ]
 
 foreach tool: gtk_tools
