@@ -48,6 +48,7 @@ tests = [
   ['window'],
   ['displayclose'],
   ['revealer-size'],
+  ['widget-refcount']
 ]
 
 test_env = environment()
