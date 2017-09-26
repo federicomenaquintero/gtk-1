@@ -2739,7 +2739,7 @@ gtk_toolbar_dispose (GObject *object)
     {
       g_signal_handlers_disconnect_by_func (priv->menu,
                                             menu_deactivated, toolbar);
-      gtk_widget_destroy (GTK_WIDGET (priv->menu));
+      g_object_unref (G_OBJECT (priv->menu));
       priv->menu = NULL;
     }
 

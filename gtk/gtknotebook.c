@@ -4242,7 +4242,7 @@ gtk_notebook_real_remove (GtkNotebook *notebook,
       g_object_ref (tab_label);
       gtk_notebook_remove_tab_label (notebook, page);
       if (destroying)
-        gtk_widget_destroy (tab_label);
+        gtk_widget_unparent (tab_label); /* parent is page->tab_widget */
       g_object_unref (tab_label);
     }
 
@@ -6122,7 +6122,7 @@ gtk_notebook_set_show_tabs (GtkNotebook *notebook,
           children = children->next;
           if (page->default_tab)
             {
-              gtk_widget_destroy (page->tab_label);
+              gtk_widget_unparent (page->tab_label);
               page->tab_label = NULL;
             }
           else
@@ -6409,7 +6409,9 @@ gtk_notebook_popup_disable (GtkNotebook *notebook)
 
   gtk_container_foreach (GTK_CONTAINER (priv->menu),
                          (GtkCallback) gtk_notebook_menu_label_unparent, NULL);
-  gtk_widget_destroy (priv->menu);
+
+  gtk_menu_detach (GTK_MENU (priv->menu));
+  priv->menu = NULL;
 
   g_object_notify_by_pspec (G_OBJECT (notebook), properties[PROP_ENABLE_POPUP]);
 }
