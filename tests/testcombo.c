@@ -157,6 +157,7 @@ create_tree_blaat (void)
         GtkTreeStore *store;
 
         cellview = gtk_cell_view_new ();
+        g_object_ref_sink (cellview);
 
 	store = gtk_tree_store_new (3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN);
 
@@ -204,7 +205,7 @@ create_tree_blaat (void)
 			    2, FALSE,
                             -1);
 
-        gtk_widget_destroy (cellview);
+        g_object_unref (cellview);
 
         return GTK_TREE_MODEL (store);
 }
@@ -217,6 +218,7 @@ create_empty_list_blaat (void)
         GtkListStore *store;
 
         cellview = gtk_cell_view_new ();
+        g_object_ref_sink (cellview);
 
         store = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
 
@@ -226,7 +228,7 @@ create_empty_list_blaat (void)
                             1, "dialog-warning",
                             -1);
 
-        gtk_widget_destroy (cellview);
+        g_object_unref (cellview);
 
         return GTK_TREE_MODEL (store);
 }
@@ -247,6 +249,7 @@ populate_list_blaat (gpointer data)
     return;
 
   cellview = gtk_cell_view_new ();
+  g_object_ref_sink (cellview);
   
   gtk_list_store_append (store, &iter);			       
   gtk_list_store_set (store, &iter,
@@ -278,7 +281,7 @@ populate_list_blaat (gpointer data)
 		      1, "document-open",
 		      -1);
   
-  gtk_widget_destroy (cellview);  
+  g_object_unref (cellview);
 }
 
 static GtkTreeModel *
@@ -289,6 +292,7 @@ create_list_blaat (void)
         GtkListStore *store;
 
         cellview = gtk_cell_view_new ();
+        g_object_ref_sink (cellview);
 
         store = gtk_list_store_new (2, G_TYPE_STRING, G_TYPE_STRING);
 
@@ -328,7 +332,7 @@ create_list_blaat (void)
                             1, "document-open",
                             -1);
 
-        gtk_widget_destroy (cellview);
+        g_object_unref (cellview);
 
         return GTK_TREE_MODEL (store);
 }
