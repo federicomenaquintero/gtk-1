@@ -46,7 +46,7 @@ struct _GskSlExpressionClass {
   void                  (* print)                               (const GskSlExpression  *expression,
                                                                  GString                *string);
   GskSlType *           (* get_return_type)                     (const GskSlExpression  *expression);
-  gboolean              (* is_constant)                         (const GskSlExpression  *expression);
+  GskSlValue *          (* get_constant)                        (const GskSlExpression  *expression);
   guint32               (* write_spv)                           (const GskSlExpression  *expression,
                                                                  GskSpvWriter           *writer);
 };
@@ -148,12 +148,10 @@ gsk_sl_expression_assignment_get_return_type (const GskSlExpression *expression)
   return gsk_sl_expression_get_return_type (assignment->lvalue);
 }
 
-static gboolean
-gsk_sl_expression_assignment_is_constant (const GskSlExpression *expression)
+static GskSlValue *
+gsk_sl_expression_assignment_get_constant (const GskSlExpression *expression)
 {
-  const GskSlExpressionAssignment *assignment = (const GskSlExpressionAssignment *) expression;
-
-  return gsk_sl_expression_get_return_type (assignment->rvalue);
+  return NULL;
 }
 
 static guint32
@@ -169,7 +167,7 @@ static const GskSlExpressionClass GSK_SL_EXPRESSION_ASSIGNMENT = {
   gsk_sl_expression_assignment_free,
   gsk_sl_expression_assignment_print,
   gsk_sl_expression_assignment_get_return_type,
-  gsk_sl_expression_assignment_is_constant,
+  gsk_sl_expression_assignment_get_constant,
   gsk_sl_expression_assignment_write_spv
 };
 
@@ -599,13 +597,13 @@ gsk_sl_expression_operation_get_return_type (const GskSlExpression *expression)
   }
 }
 
-static gboolean
-gsk_sl_expression_operation_is_constant (const GskSlExpression *expression)
+static GskSlValue *
+gsk_sl_expression_operation_get_constant (const GskSlExpression *expression)
 {
-  GskSlExpressionOperation *operation = (const GskSlExpressionOperation *) expression;
+  //GskSlExpressionOperation *operation = (const GskSlExpressionOperation *) expression;
 
-  return gsk_sl_expression_is_constant (operation->left)
-      && gsk_sl_expression_is_constant (operation->right);
+  /* FIXME: These need constant evaluations */
+  return NULL;
 }
 
 static guint32
@@ -621,7 +619,7 @@ static const GskSlExpressionClass GSK_SL_EXPRESSION_OPERATION = {
   gsk_sl_expression_operation_free,
   gsk_sl_expression_operation_print,
   gsk_sl_expression_operation_get_return_type,
-  gsk_sl_expression_operation_is_constant,
+  gsk_sl_expression_operation_get_constant,
   gsk_sl_expression_operation_write_spv
 };
 
@@ -662,10 +660,11 @@ gsk_sl_expression_reference_get_return_type (const GskSlExpression *expression)
   return gsk_sl_pointer_type_get_type (gsk_sl_variable_get_type (reference->variable));
 }
 
-static gboolean
-gsk_sl_expression_reference_is_constant (const GskSlExpression *expression)
+static GskSlValue *
+gsk_sl_expression_reference_get_constant (const GskSlExpression *expression)
 {
-  return FALSE;
+  /* FIXME: values for constant variables need to be returned here */
+  return NULL;
 }
 
 static guint32
@@ -692,7 +691,7 @@ static const GskSlExpressionClass GSK_SL_EXPRESSION_REFERENCE = {
   gsk_sl_expression_reference_free,
   gsk_sl_expression_reference_print,
   gsk_sl_expression_reference_get_return_type,
-  gsk_sl_expression_reference_is_constant,
+  gsk_sl_expression_reference_get_constant,
   gsk_sl_expression_reference_write_spv
 };
 
@@ -753,10 +752,11 @@ gsk_sl_expression_function_call_get_return_type (const GskSlExpression *expressi
   return gsk_sl_function_get_return_type (function_call->function);
 }
 
-static gboolean
-gsk_sl_expression_function_call_is_constant (const GskSlExpression *expression)
+static GskSlValue *
+gsk_sl_expression_function_call_get_constant (const GskSlExpression *expression)
 {
-  return FALSE;
+  /* FIXME: some functions are constant */
+  return NULL;
 }
 
 static guint32
@@ -772,7 +772,7 @@ static const GskSlExpressionClass GSK_SL_EXPRESSION_FUNCTION_CALL = {
   gsk_sl_expression_function_call_free,
   gsk_sl_expression_function_call_print,
   gsk_sl_expression_function_call_get_return_type,
-  gsk_sl_expression_function_call_is_constant,
+  gsk_sl_expression_function_call_get_constant,
   gsk_sl_expression_function_call_write_spv
 };
 
@@ -811,10 +811,12 @@ gsk_sl_expression_constant_get_return_type (const GskSlExpression *expression)
   return gsk_sl_value_get_type (constant->value);
 }
 
-static gboolean
-gsk_sl_expression_constant_is_constant (const GskSlExpression *expression)
+static GskSlValue *
+gsk_sl_expression_constant_get_constant (const GskSlExpression *expression)
 {
-  return TRUE;
+  const GskSlExpressionConstant *constant = (const GskSlExpressionConstant *) expression;
+
+  return gsk_sl_value_copy (constant->value);
 }
 
 static guint32
@@ -830,7 +832,7 @@ static const GskSlExpressionClass GSK_SL_EXPRESSION_CONSTANT = {
   gsk_sl_expression_constant_free,
   gsk_sl_expression_constant_print,
   gsk_sl_expression_constant_get_return_type,
-  gsk_sl_expression_constant_is_constant,
+  gsk_sl_expression_constant_get_constant,
   gsk_sl_expression_constant_write_spv
 };
 
@@ -1605,6 +1607,13 @@ gsk_sl_expression_parse_conditional (GskSlScope        *scope,
 }
 
 GskSlExpression *
+gsk_sl_expression_parse_constant (GskSlScope        *scope,
+                                  GskSlPreprocessor *stream)
+{
+  return gsk_sl_expression_parse_conditional (scope, stream);
+}
+
+GskSlExpression *
 gsk_sl_expression_parse_assignment (GskSlScope        *scope,
                                     GskSlPreprocessor *stream)
 {
@@ -1636,6 +1645,7 @@ gsk_sl_expression_parse_assignment (GskSlScope        *scope,
         return lvalue;
   }
 
+#if 0
   if (gsk_sl_expression_is_constant (lvalue))
     {
       gsk_sl_preprocessor_error (stream, "Cannot assign to a return lvalue.");
@@ -1646,6 +1656,7 @@ gsk_sl_expression_parse_assignment (GskSlScope        *scope,
 
       return gsk_sl_expression_parse_assignment (scope, stream);
     }
+#endif
 
   assign = gsk_sl_expression_new (GskSlExpressionAssignment, &GSK_SL_EXPRESSION_ASSIGNMENT);
   assign->lvalue = lvalue;
@@ -1707,10 +1718,10 @@ gsk_sl_expression_get_return_type (const GskSlExpression *expression)
   return expression->class->get_return_type (expression);
 }
 
-gboolean
-gsk_sl_expression_is_constant (const GskSlExpression *expression)
+GskSlValue *
+gsk_sl_expression_get_constant (const GskSlExpression *expression)
 {
-  return expression->class->is_constant (expression);
+  return expression->class->get_constant (expression);
 }
 
 guint32
