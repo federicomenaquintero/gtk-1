@@ -1026,6 +1026,18 @@ static const GskSlExpressionClass GSK_SL_EXPRESSION_CONSTANT = {
   gsk_sl_expression_constant_write_spv
 };
 
+/* If parsing fails completely, just assume 1.0 */
+static GskSlExpression *
+gsk_sl_expression_error_new (void)
+{
+  GskSlExpressionConstant *constant;
+
+  constant = gsk_sl_expression_new (GskSlExpressionConstant, &GSK_SL_EXPRESSION_CONSTANT);
+  constant->value = gsk_sl_value_new (gsk_sl_type_get_scalar (GSK_SL_FLOAT));
+
+  return (GskSlExpression *) constant;
+}
+
 GskSlExpression *
 gsk_sl_expression_parse_constructor_call (GskSlScope        *scope,
                                           GskSlPreprocessor *stream,
@@ -1035,7 +1047,6 @@ gsk_sl_expression_parse_constructor_call (GskSlScope        *scope,
   const GskSlToken *token;
   GskSlType **types;
   GError *error = NULL;
-  gboolean fail = FALSE;
   guint i;
 
   call = gsk_sl_expression_new (GskSlExpressionFunctionCall, &GSK_SL_EXPRESSION_FUNCTION_CALL);
@@ -1046,8 +1057,7 @@ gsk_sl_expression_parse_constructor_call (GskSlScope        *scope,
   if (!gsk_sl_token_is (token, GSK_SL_TOKEN_LEFT_PAREN))
     {
       gsk_sl_preprocessor_error (stream, SYNTAX, "Expected opening \"(\" when calling constructor");
-      gsk_sl_expression_unref ((GskSlExpression *) call);
-      return NULL;
+      return (GskSlExpression *) call;
     }
   gsk_sl_preprocessor_consume (stream, (GskSlExpression *) call);
 
@@ -1061,10 +1071,7 @@ gsk_sl_expression_parse_constructor_call (GskSlScope        *scope,
         {
           GskSlExpression *expression = gsk_sl_expression_parse_assignment (scope, stream);
 
-          if (expression != NULL)
-            g_ptr_array_add (arguments, expression);
-          else
-            fail = TRUE;
+          g_ptr_array_add (arguments, expression);
           
           token = gsk_sl_preprocessor_get (stream);
           if (!gsk_sl_token_is (token, GSK_SL_TOKEN_COMMA))
@@ -1083,22 +1090,14 @@ gsk_sl_expression_parse_constructor_call (GskSlScope        *scope,
     {
       gsk_sl_preprocessor_emit_error (stream, TRUE, gsk_sl_preprocessor_get_location (stream), error);
       g_clear_error (&error);
-      fail = TRUE;
     }
 
   if (!gsk_sl_token_is (token, GSK_SL_TOKEN_RIGHT_PAREN))
     {
       gsk_sl_preprocessor_error (stream, SYNTAX, "Expected closing \")\" after arguments.");
-      gsk_sl_expression_unref ((GskSlExpression *) call);
-      return NULL;
+      return (GskSlExpression *) call;
     }
   gsk_sl_preprocessor_consume (stream, (GskSlExpression *) call);
-
-  if (fail)
-    {
-      gsk_sl_expression_unref ((GskSlExpression *) call);
-      return NULL;
-    }
 
   return (GskSlExpression *) call;
 }
@@ -1123,7 +1122,7 @@ gsk_sl_expression_parse_primary (GskSlScope        *scope,
           {
             gsk_sl_preprocessor_error (stream, DECLARATION, "No variable named \"%s\".", token->str);
             gsk_sl_preprocessor_consume (stream, NULL);
-            return NULL;
+            return gsk_sl_expression_error_new ();
           }
 
         reference = gsk_sl_expression_new (GskSlExpressionReference, &GSK_SL_EXPRESSION_REFERENCE);
@@ -1216,8 +1215,6 @@ gsk_sl_expression_parse_primary (GskSlScope        *scope,
         GskSlType *type;
 
         type = gsk_sl_type_new_parse (stream);
-        if (type == NULL)
-          return NULL;
 
         return gsk_sl_expression_parse_constructor_call (scope, stream, type);
       }
@@ -1225,7 +1222,7 @@ gsk_sl_expression_parse_primary (GskSlScope        *scope,
     default:
       gsk_sl_preprocessor_error (stream, SYNTAX, "Expected an expression.");
       gsk_sl_preprocessor_consume (stream, NULL);
-      return NULL;
+      return gsk_sl_expression_error_new ();
   }
 }
 
@@ -1233,15 +1230,13 @@ static GskSlExpression *
 gsk_sl_expression_parse_field_selection (GskSlScope        *scope,
                                          GskSlPreprocessor *stream,
                                          GskSlExpression   *expr,
-                                         const char        *name,
-                                         gboolean          *success)
+                                         const char        *name)
 {
   GskSlType *type;
 
   if (g_str_equal (name, "length"))
     {
        gsk_sl_preprocessor_error (stream, UNSUPPORTED, ".length() is not implemented yet.");
-       *success = FALSE;
        return expr;
     }
 
@@ -1264,11 +1259,8 @@ gsk_sl_expression_parse_field_selection (GskSlScope        *scope,
         {
           gsk_sl_preprocessor_error (stream, TYPE_MISMATCH, "Type %s has no member named \"%s\".", gsk_sl_type_get_name (type), name);
           gsk_sl_expression_unref ((GskSlExpression *) swizzle);
-          *success = FALSE;
           return expr;
         }
-      swizzle->expr = expr;
-
       for (swizzle->length = 0; swizzle->length < 4 && name[swizzle->length]; swizzle->length++)
         {
           const char *found = strchr (swizzle_options[swizzle->name], name[swizzle->length]);
@@ -1277,8 +1269,8 @@ gsk_sl_expression_parse_field_selection (GskSlScope        *scope,
               gsk_sl_preprocessor_error (stream, SYNTAX,
                                          "Character '%c' is not valid for swizzle. Must be one of \"%s\".",
                                          name[swizzle->length], swizzle_options[swizzle->name]);
-              *success = FALSE;
-              return (GskSlExpression *) swizzle;
+              gsk_sl_expression_unref ((GskSlExpression *) swizzle);
+              return expr;
             }
           swizzle->indexes[swizzle->length] = found - swizzle_options[swizzle->name];
           if (swizzle->indexes[swizzle->length] >= type_length)
@@ -1286,14 +1278,15 @@ gsk_sl_expression_parse_field_selection (GskSlScope        *scope,
               gsk_sl_preprocessor_error (stream, SYNTAX,
                                          "Swizzle index '%c' not allowed for type %s",
                                          name[swizzle->length], gsk_sl_type_get_name (type));
-              *success = FALSE;
-              return (GskSlExpression *) swizzle;
+              gsk_sl_expression_unref ((GskSlExpression *) swizzle);
+              return expr;
             }
         }
+      swizzle->expr = expr;
+
       if (name[swizzle->length])
         {
           gsk_sl_preprocessor_error (stream, SYNTAX, "Too many swizzle options. A maximum of 4 characters are allowed.");
-          *success = FALSE;
           return (GskSlExpression *) swizzle;
         }
   
@@ -1302,7 +1295,6 @@ gsk_sl_expression_parse_field_selection (GskSlScope        *scope,
   else
     {
       gsk_sl_preprocessor_error (stream, TYPE_MISMATCH, "Type %s has no fields to select.", gsk_sl_type_get_name (type));
-      *success = FALSE;
       return expr;
     }
 }
@@ -1313,7 +1305,6 @@ gsk_sl_expression_parse_postfix (GskSlScope        *scope,
 {
   GskSlExpression *expr;
   const GskSlToken *token;
-  gboolean success = TRUE;
   
   expr = gsk_sl_expression_parse_primary (scope, stream);
 
@@ -1328,13 +1319,12 @@ gsk_sl_expression_parse_postfix (GskSlScope        *scope,
             {
               char *field = g_strdup (token->str);
               gsk_sl_preprocessor_consume (stream, NULL);
-              expr = gsk_sl_expression_parse_field_selection (scope, stream, expr, field, &success);
+              expr = gsk_sl_expression_parse_field_selection (scope, stream, expr, field);
               g_free (field);
             }
           else
             {
               gsk_sl_preprocessor_error (stream, SYNTAX, "Expected an identifier to select a field.");
-              success = FALSE;
               continue;
             }
         }
@@ -1342,12 +1332,6 @@ gsk_sl_expression_parse_postfix (GskSlScope        *scope,
         {
           break;
         }
-    }
-
-  if (!success)
-    {
-      gsk_sl_expression_unref (expr);
-      return NULL;
     }
 
   return expr;
@@ -1370,8 +1354,6 @@ gsk_sl_expression_parse_multiplicative (GskSlScope        *scope,
   GskSlOperation op;
 
   expression = gsk_sl_expression_parse_unary (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1390,20 +1372,15 @@ gsk_sl_expression_parse_multiplicative (GskSlScope        *scope,
       operation->op = op;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_unary (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if ((op == GSK_SL_OPERATION_MOD &&
-                !gsk_sl_expression_bitwise_type_check (stream,
-                                                 gsk_sl_expression_get_return_type (operation->left),
-                                                 gsk_sl_expression_get_return_type (operation->right))) ||
-               (op != GSK_SL_OPERATION_MOD &&
-                !gsk_sl_expression_arithmetic_type_check (stream,
-                                                    FALSE,
-                                                    gsk_sl_expression_get_return_type (operation->left),
-                                                    gsk_sl_expression_get_return_type (operation->right))))
+      if ((op == GSK_SL_OPERATION_MOD &&
+           !gsk_sl_expression_bitwise_type_check (stream,
+                                            gsk_sl_expression_get_return_type (operation->left),
+                                            gsk_sl_expression_get_return_type (operation->right))) ||
+          (op != GSK_SL_OPERATION_MOD &&
+           !gsk_sl_expression_arithmetic_type_check (stream,
+                                               FALSE,
+                                               gsk_sl_expression_get_return_type (operation->left),
+                                               gsk_sl_expression_get_return_type (operation->right))))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1445,15 +1422,10 @@ gsk_sl_expression_parse_additive (GskSlScope        *scope,
       operation->op = op;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_additive (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_expression_arithmetic_type_check (stream,
-                                                   FALSE,
-                                                   gsk_sl_expression_get_return_type (operation->left),
-                                                   gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_expression_arithmetic_type_check (stream,
+                                                    FALSE,
+                                                    gsk_sl_expression_get_return_type (operation->left),
+                                                    gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1477,8 +1449,6 @@ gsk_sl_expression_parse_shift (GskSlScope        *scope,
   GskSlOperation op;
 
   expression = gsk_sl_expression_parse_additive (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1495,14 +1465,9 @@ gsk_sl_expression_parse_shift (GskSlScope        *scope,
       operation->op = op;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_additive (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_expression_shift_type_check (stream,
-                                              gsk_sl_expression_get_return_type (operation->left),
-                                              gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_expression_shift_type_check (stream,
+                                               gsk_sl_expression_get_return_type (operation->left),
+                                               gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1526,8 +1491,6 @@ gsk_sl_expression_parse_relational (GskSlScope        *scope,
   GskSlOperation op;
 
   expression = gsk_sl_expression_parse_shift (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1548,14 +1511,9 @@ gsk_sl_expression_parse_relational (GskSlScope        *scope,
       operation->op = op;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_shift (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_expression_relational_type_check (stream,
-                                                   gsk_sl_expression_get_return_type (operation->left),
-                                                   gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_expression_relational_type_check (stream,
+                                                    gsk_sl_expression_get_return_type (operation->left),
+                                                    gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1579,8 +1537,6 @@ gsk_sl_expression_parse_equality (GskSlScope        *scope,
   GskSlOperation op;
 
   expression = gsk_sl_expression_parse_relational (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1597,15 +1553,7 @@ gsk_sl_expression_parse_equality (GskSlScope        *scope,
       operation->op = op;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_relational (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else
-        {
-          expression = (GskSlExpression *) operation;
-        }
+      expression = (GskSlExpression *) operation;
     }
 
   return expression;
@@ -1620,8 +1568,6 @@ gsk_sl_expression_parse_and (GskSlScope        *scope,
   GskSlExpressionOperation *operation;
 
   expression = gsk_sl_expression_parse_equality (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1634,14 +1580,9 @@ gsk_sl_expression_parse_and (GskSlScope        *scope,
       operation->op = GSK_SL_OPERATION_AND;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_equality (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_expression_bitwise_type_check (stream,
-                                                gsk_sl_expression_get_return_type (operation->left),
-                                                gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_expression_bitwise_type_check (stream,
+                                                 gsk_sl_expression_get_return_type (operation->left),
+                                                 gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1664,8 +1605,6 @@ gsk_sl_expression_parse_xor (GskSlScope        *scope,
   GskSlExpressionOperation *operation;
 
   expression = gsk_sl_expression_parse_and (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1678,14 +1617,9 @@ gsk_sl_expression_parse_xor (GskSlScope        *scope,
       operation->op = GSK_SL_OPERATION_XOR;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_and (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_expression_bitwise_type_check (stream,
-                                                gsk_sl_expression_get_return_type (operation->left),
-                                                gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_expression_bitwise_type_check (stream,
+                                                 gsk_sl_expression_get_return_type (operation->left),
+                                                 gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1708,8 +1642,6 @@ gsk_sl_expression_parse_or (GskSlScope        *scope,
   GskSlExpressionOperation *operation;
 
   expression = gsk_sl_expression_parse_xor (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1722,14 +1654,9 @@ gsk_sl_expression_parse_or (GskSlScope        *scope,
       operation->op = GSK_SL_OPERATION_OR;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_xor (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_expression_bitwise_type_check (stream,
-                                                gsk_sl_expression_get_return_type (operation->left),
-                                                gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_expression_bitwise_type_check (stream,
+                                                 gsk_sl_expression_get_return_type (operation->left),
+                                                 gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_expression_ref (expression);
           gsk_sl_expression_unref ((GskSlExpression *) operation);
@@ -1752,8 +1679,6 @@ gsk_sl_expression_parse_logical_and (GskSlScope        *scope,
   GskSlExpressionOperation *operation;
 
   expression = gsk_sl_expression_parse_or (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1766,13 +1691,8 @@ gsk_sl_expression_parse_logical_and (GskSlScope        *scope,
       operation->op = GSK_SL_OPERATION_LOGICAL_AND;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_or (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
-                                         gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
+                                    gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_preprocessor_error (stream, TYPE_MISMATCH,
                                      "Right operand of && expression is not bool but %s",
@@ -1808,8 +1728,6 @@ gsk_sl_expression_parse_logical_xor (GskSlScope        *scope,
   GskSlExpressionOperation *operation;
 
   expression = gsk_sl_expression_parse_logical_and (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1822,13 +1740,8 @@ gsk_sl_expression_parse_logical_xor (GskSlScope        *scope,
       operation->op = GSK_SL_OPERATION_LOGICAL_XOR;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_logical_and (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
-                                         gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
+                                    gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_preprocessor_error (stream, TYPE_MISMATCH,
                                      "Right operand of ^^ expression is not bool but %s",
@@ -1864,8 +1777,6 @@ gsk_sl_expression_parse_logical_or (GskSlScope        *scope,
   GskSlExpressionOperation *operation;
 
   expression = gsk_sl_expression_parse_logical_xor (scope, stream);
-  if (expression == NULL)
-    return NULL;
 
   while (TRUE)
     {
@@ -1878,13 +1789,8 @@ gsk_sl_expression_parse_logical_or (GskSlScope        *scope,
       operation->op = GSK_SL_OPERATION_LOGICAL_OR;
       gsk_sl_preprocessor_consume (stream, (GskSlExpression *) operation);
       operation->right = gsk_sl_expression_parse_logical_xor (scope, stream);
-      if (operation->right == NULL)
-        {
-          gsk_sl_expression_ref (expression);
-          gsk_sl_expression_unref ((GskSlExpression *) operation);
-        }
-      else if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
-                                         gsk_sl_expression_get_return_type (operation->right)))
+      if (!gsk_sl_type_can_convert (gsk_sl_type_get_scalar (GSK_SL_BOOL),
+                                    gsk_sl_expression_get_return_type (operation->right)))
         {
           gsk_sl_preprocessor_error (stream, TYPE_MISMATCH,
                                      "Right operand of || expression is not bool but %s",
@@ -1935,8 +1841,6 @@ gsk_sl_expression_parse_assignment (GskSlScope        *scope,
   GskSlExpressionAssignment *assign;
 
   lvalue = gsk_sl_expression_parse_conditional (scope, stream);
-  if (lvalue == NULL)
-    return NULL;
 
   token = gsk_sl_preprocessor_get (stream);
   switch (token->type)
@@ -1978,11 +1882,6 @@ gsk_sl_expression_parse_assignment (GskSlScope        *scope,
   gsk_sl_preprocessor_consume (stream, (GskSlExpression *) assign);
 
   assign->rvalue = gsk_sl_expression_parse_assignment (scope, stream);
-  if (assign->rvalue == NULL)
-    {
-      gsk_sl_expression_unref ((GskSlExpression *) assign);
-      return lvalue;
-    }
 
   return (GskSlExpression *) assign;
 }
