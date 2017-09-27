@@ -44,6 +44,7 @@ struct _GskSlTypeClass {
   const char *          (* get_name)                            (GskSlType           *type);
   GskSlScalarType       (* get_scalar_type)                     (GskSlType           *type);
   GskSlType *           (* get_index_type)                      (GskSlType           *type);
+  gsize                 (* get_index_stride)                    (GskSlType           *type);
   guint                 (* get_length)                          (GskSlType           *type);
   gsize                 (* get_size)                            (GskSlType           *type);
   gboolean              (* can_convert)                         (GskSlType           *target,
@@ -343,6 +344,12 @@ gsk_sl_type_scalar_get_index_type (GskSlType *type)
   return NULL;
 }
 
+static gsize
+gsk_sl_type_scalar_get_index_stride (GskSlType *type)
+{
+  return 0;
+}
+
 static guint
 gsk_sl_type_scalar_get_length (GskSlType *type)
 {
@@ -466,6 +473,7 @@ static const GskSlTypeClass GSK_SL_TYPE_SCALAR = {
   gsk_sl_type_scalar_get_name,
   gsk_sl_type_scalar_get_scalar_type,
   gsk_sl_type_scalar_get_index_type,
+  gsk_sl_type_scalar_get_index_stride,
   gsk_sl_type_scalar_get_length,
   gsk_sl_type_scalar_get_size,
   gsk_sl_type_scalar_can_convert,
@@ -514,6 +522,14 @@ gsk_sl_type_vector_get_index_type (GskSlType *type)
   GskSlTypeVector *vector = (GskSlTypeVector *) type;
 
   return gsk_sl_type_get_scalar (vector->scalar);
+}
+
+static gsize
+gsk_sl_type_vector_get_index_stride (GskSlType *type)
+{
+  GskSlTypeVector *vector = (GskSlTypeVector *) type;
+
+  return scalar_infos[vector->scalar].size;
 }
 
 static guint
@@ -630,6 +646,7 @@ static const GskSlTypeClass GSK_SL_TYPE_VECTOR = {
   gsk_sl_type_vector_get_name,
   gsk_sl_type_vector_get_scalar_type,
   gsk_sl_type_vector_get_index_type,
+  gsk_sl_type_vector_get_index_stride,
   gsk_sl_type_vector_get_length,
   gsk_sl_type_vector_get_size,
   gsk_sl_type_vector_can_convert,
@@ -679,6 +696,14 @@ gsk_sl_type_matrix_get_index_type (GskSlType *type)
   GskSlTypeMatrix *matrix = (GskSlTypeMatrix *) type;
 
   return gsk_sl_type_get_vector (matrix->scalar, matrix->rows);
+}
+
+static gsize
+gsk_sl_type_matrix_get_index_stride (GskSlType *type)
+{
+  GskSlTypeMatrix *matrix = (GskSlTypeMatrix *) type;
+
+  return scalar_infos[matrix->scalar].size * matrix->rows;
 }
 
 static guint
@@ -796,6 +821,7 @@ static const GskSlTypeClass GSK_SL_TYPE_MATRIX = {
   gsk_sl_type_matrix_get_name,
   gsk_sl_type_matrix_get_scalar_type,
   gsk_sl_type_matrix_get_index_type,
+  gsk_sl_type_matrix_get_index_stride,
   gsk_sl_type_matrix_get_length,
   gsk_sl_type_matrix_get_size,
   gsk_sl_type_matrix_can_convert,
@@ -1116,6 +1142,12 @@ GskSlType *
 gsk_sl_type_get_index_type (const GskSlType *type)
 {
   return type->class->get_index_type (type);
+}
+
+gsize
+gsk_sl_type_get_index_stride (const GskSlType *type)
+{
+  return type->class->get_index_stride (type);
 }
 
 guint
