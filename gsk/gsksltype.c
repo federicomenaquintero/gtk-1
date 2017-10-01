@@ -328,6 +328,125 @@ gsk_sl_type_alloc (const GskSlTypeClass *klass,
 }
 #define gsk_sl_type_new(_name, _klass) ((_name *) gsk_sl_type_alloc ((_klass), sizeof (_name)))
 
+/* VOID */
+
+typedef struct _GskSlTypeVoid GskSlTypeVoid;
+
+struct _GskSlTypeVoid {
+  GskSlType parent;
+};
+
+static void
+gsk_sl_type_void_free (GskSlType *type)
+{
+  g_assert_not_reached ();
+}
+
+static const char *
+gsk_sl_type_void_get_name (GskSlType *type)
+{
+  return "void";
+}
+
+static GskSlScalarType
+gsk_sl_type_void_get_scalar_type (GskSlType *type)
+{
+  return GSK_SL_VOID;
+}
+
+static GskSlType *
+gsk_sl_type_void_get_index_type (GskSlType *type)
+{
+  return NULL;
+}
+
+static gsize
+gsk_sl_type_void_get_index_stride (GskSlType *type)
+{
+  return 0;
+}
+
+static guint
+gsk_sl_type_void_get_length (GskSlType *type)
+{
+  return 0;
+}
+
+static gsize
+gsk_sl_type_void_get_size (GskSlType *type)
+{
+  return 0;
+}
+
+static guint
+gsk_sl_type_void_get_n_members (GskSlType *type)
+{
+  return 0;
+}
+
+static const GskSlTypeMember *
+gsk_sl_type_void_get_member (GskSlType *type,
+                             guint      n)
+{
+  return NULL;
+}
+
+static gboolean
+gsk_sl_type_void_can_convert (GskSlType *target,
+                              GskSlType *source)
+{
+  return FALSE;
+}
+
+static guint32
+gsk_sl_type_void_write_spv (const GskSlType *type,
+                              GskSpvWriter    *writer)
+{
+  guint32 result;
+
+  result = gsk_spv_writer_next_id (writer);
+  gsk_spv_writer_add (writer,
+                      GSK_SPV_WRITER_SECTION_DECLARE,
+                      2, GSK_SPV_OP_TYPE_VOID,
+                      (guint32[1]) { result });
+
+  return result;
+}
+
+static void
+gsk_sl_type_void_print_value (const GskSlType *type,
+                              GskSlPrinter    *printer,
+                              gpointer         value)
+{
+  g_assert_not_reached ();
+}
+
+static guint32
+gsk_sl_type_void_write_value_spv (GskSlType    *type,
+                                  GskSpvWriter *writer,
+                                  gpointer      value)
+{
+  g_assert_not_reached ();
+
+  return 0;
+}
+
+static const GskSlTypeClass GSK_SL_TYPE_VOID = {
+  gsk_sl_type_void_free,
+  gsk_sl_type_void_get_name,
+  gsk_sl_type_void_get_scalar_type,
+  gsk_sl_type_void_get_index_type,
+  gsk_sl_type_void_get_index_stride,
+  gsk_sl_type_void_get_length,
+  gsk_sl_type_void_get_size,
+  gsk_sl_type_void_get_n_members,
+  gsk_sl_type_void_get_member,
+  gsk_sl_type_void_can_convert,
+  gsk_sl_type_void_write_spv,
+  gsk_sl_type_void_print_value,
+  gsk_sl_type_void_write_value_spv
+};
+
 /* SCALAR */
 
 typedef struct _GskSlTypeScalar GskSlTypeScalar;
@@ -1200,7 +1319,7 @@ gsk_sl_type_get_builtin (GskSlBuiltinType builtin)
   switch (builtin)
     {
     case GSK_SL_BUILTIN_VOID:
-      return gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_VOID));
+      return gsk_sl_type_ref (gsk_sl_type_get_void ());
     case GSK_SL_BUILTIN_FLOAT:
       return gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_FLOAT));
     case GSK_SL_BUILTIN_DOUBLE:
@@ -1279,7 +1398,7 @@ gsk_sl_type_get_builtin (GskSlBuiltinType builtin)
       return gsk_sl_type_ref (gsk_sl_type_get_matrix (GSK_SL_DOUBLE, 4, 4));
     default:
       g_assert_not_reached ();
-      return gsk_sl_type_get_scalar (GSK_SL_VOID);
+      return gsk_sl_type_get_void ();
     }
 }
 
@@ -1295,7 +1414,7 @@ gsk_sl_type_new_parse (GskSlScope        *scope,
   switch (token->type)
   {
     case GSK_SL_TOKEN_VOID:
-      type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_VOID));
+      type = gsk_sl_type_ref (gsk_sl_type_get_void ());
       break;
     case GSK_SL_TOKEN_FLOAT:
       type = gsk_sl_type_ref (gsk_sl_type_get_scalar (GSK_SL_FLOAT));
@@ -1440,9 +1559,16 @@ gsk_sl_type_new_parse (GskSlScope        *scope,
   return type;
 }
 
+static GskSlTypeVoid void_type = { { &GSK_SL_TYPE_VOID, 1 } };
+
+GskSlType *
+gsk_sl_type_get_void (void)
+{
+  return &void_type.parent;
+}
+
 static GskSlTypeScalar
 builtin_scalar_types[N_SCALAR_TYPES] = {
-  [GSK_SL_VOID] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_VOID },
   [GSK_SL_FLOAT] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_FLOAT },
   [GSK_SL_DOUBLE] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_DOUBLE },
   [GSK_SL_INT] = { { &GSK_SL_TYPE_SCALAR, 1 }, GSK_SL_INT },
@@ -1454,6 +1580,7 @@ GskSlType *
 gsk_sl_type_get_scalar (GskSlScalarType scalar)
 {
   g_assert (scalar < N_SCALAR_TYPES);
+  g_return_val_if_fail (scalar != GSK_SL_VOID, &void_type.parent);
 
   return &builtin_scalar_types[scalar].parent;
 }
@@ -1579,6 +1706,12 @@ const char *
 gsk_sl_type_get_name (const GskSlType *type)
 {
   return type->class->get_name (type);
+}
+
+gboolean
+gsk_sl_type_is_void (const GskSlType *type)
+{
+  return type->class == &GSK_SL_TYPE_VOID;
 }
 
 gboolean
