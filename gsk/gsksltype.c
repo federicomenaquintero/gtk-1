@@ -68,6 +68,9 @@ struct _GskSlTypeClass {
   void                  (* print_value)                         (const GskSlType     *type,
                                                                  GskSlPrinter        *printer,
                                                                  gpointer             value);
+  gboolean              (* value_equal)                         (const GskSlType     *type,
+                                                                 gconstpointer        a,
+                                                                 gconstpointer        b);
   guint32               (* write_value_spv)                     (GskSlType           *type,
                                                                  GskSpvWriter        *writer,
                                                                  gpointer             value);
@@ -295,20 +298,57 @@ bool_to_bool (gpointer target, gconstpointer source)
   *(guint32 *) target = *(const guint32 *) source;
 }
 
+static gboolean
+void_equal (gconstpointer a, gconstpointer b)
+{
+  return FALSE;
+}
+
+static gboolean
+int_equal (gconstpointer a, gconstpointer b)
+{
+  return *(const gint32 *) a == *(const gint32 *) b;
+}
+
+static gboolean
+uint_equal (gconstpointer a, gconstpointer b)
+{
+  return *(const guint32 *) a == *(const guint32 *) b;
+}
+
+static gboolean
+float_equal (gconstpointer a, gconstpointer b)
+{
+  return *(const float *) a == *(const float *) b;
+}
+
+static gboolean
+double_equal (gconstpointer a, gconstpointer b)
+{
+  return *(const double *) a == *(const double *) b;
+}
+
+static gboolean
+bool_equal (gconstpointer a, gconstpointer b)
+{
+  return !*(const guint32 *) a == !*(const guint32 *) b;
+}
+
 #define CONVERSIONS(name) { NULL, name ## _to_float, name ## _to_double, name ## _to_int, name ## _to_uint, name ## _to_bool }
 struct {
   char *name;
   gsize size;
   void (* print_value) (GskSlPrinter *printer, gpointer value);
+  gboolean (* value_equal) (gconstpointer a, gconstpointer b);
   void (* convert_value[N_SCALAR_TYPES]) (gpointer target, gconstpointer source);
   guint32 (* write_value_spv) (GskSpvWriter *writer, gpointer value);
 } scalar_infos[] = {
-  [GSK_SL_VOID] =   { "void",   0, print_void,   { NULL, },            write_void_spv, },
-  [GSK_SL_FLOAT] =  { "float",  4, print_float,  CONVERSIONS (float),  write_float_spv },
-  [GSK_SL_DOUBLE] = { "double", 8, print_double, CONVERSIONS (double), write_double_spv },
-  [GSK_SL_INT] =    { "int",    4, print_int,    CONVERSIONS (int),    write_int_spv },
-  [GSK_SL_UINT] =   { "uint",   4, print_uint,   CONVERSIONS (uint),   write_uint_spv },
-  [GSK_SL_BOOL] =   { "bool",   4, print_bool,   CONVERSIONS (bool),   write_bool_spv }
+  [GSK_SL_VOID] =   { "void",   0, print_void,   void_equal,   { NULL, },            write_void_spv, },
+  [GSK_SL_FLOAT] =  { "float",  4, print_float,  float_equal,  CONVERSIONS (float),  write_float_spv },
+  [GSK_SL_DOUBLE] = { "double", 8, print_double, double_equal, CONVERSIONS (double), write_double_spv },
+  [GSK_SL_INT] =    { "int",    4, print_int,    int_equal,    CONVERSIONS (int),    write_int_spv },
+  [GSK_SL_UINT] =   { "uint",   4, print_uint,   uint_equal,   CONVERSIONS (uint),   write_uint_spv },
+  [GSK_SL_BOOL] =   { "bool",   4, print_bool,   bool_equal,   CONVERSIONS (bool),   write_bool_spv }
 };
 #undef SIMPLE_CONVERSION
 #undef CONVERSIONS
@@ -427,6 +467,14 @@ gsk_sl_type_void_print_value (const GskSlType *type,
   g_assert_not_reached ();
 }
 
+static gboolean
+gsk_sl_type_void_value_equal (const GskSlType *type,
+                              gconstpointer    a,
+                              gconstpointer    b)
+{
+  return FALSE;
+}
+
 static guint32
 gsk_sl_type_void_write_value_spv (GskSlType    *type,
                                   GskSpvWriter *writer,
@@ -451,6 +499,7 @@ static const GskSlTypeClass GSK_SL_TYPE_VOID = {
   gsk_sl_type_void_can_convert,
   gsk_sl_type_void_write_spv,
   gsk_sl_type_void_print_value,
+  gsk_sl_type_void_value_equal,
   gsk_sl_type_void_write_value_spv
 };
 
@@ -625,6 +674,16 @@ gsk_sl_type_scalar_print_value (const GskSlType *type,
   scalar_infos[scalar->scalar].print_value (printer, value);
 }
 
+static gboolean
+gsk_sl_type_scalar_value_equal (const GskSlType *type,
+                                gconstpointer    a,
+                                gconstpointer    b)
+{
+  GskSlTypeScalar *scalar = (GskSlTypeScalar *) type;
+
+  return scalar_infos[scalar->scalar].value_equal (a, b);
+}
+
 static guint32
 gsk_sl_type_scalar_write_value_spv (GskSlType    *type,
                                     GskSpvWriter *writer,
@@ -649,6 +708,7 @@ static const GskSlTypeClass GSK_SL_TYPE_SCALAR = {
   gsk_sl_type_scalar_can_convert,
   gsk_sl_type_scalar_write_spv,
   gsk_sl_type_scalar_print_value,
+  gsk_sl_type_scalar_value_equal,
   gsk_sl_type_scalar_write_value_spv
 };
 
@@ -798,6 +858,29 @@ gsk_sl_type_vector_print_value (const GskSlType *type,
   gsk_sl_printer_append (printer, ")");
 }
 
+static gboolean
+gsk_sl_type_vector_value_equal (const GskSlType *type,
+                                gconstpointer    a,
+                                gconstpointer    b)
+{
+  GskSlTypeVector *vector = (GskSlTypeVector *) type;
+  guint i;
+  guchar *adata, *bdata;
+
+  adata = a;
+  bdata = b;
+
+  for (i = 0; i < vector->length; i++)
+    {
+      if (!scalar_infos[vector->scalar].value_equal (adata, bdata))
+        return FALSE;
+      adata += scalar_infos[vector->scalar].size;
+      bdata += scalar_infos[vector->scalar].size;
+    }
+
+  return TRUE;
+}
+
 static guint32
 gsk_sl_type_vector_write_value_spv (GskSlType    *type,
                                     GskSpvWriter *writer,
@@ -846,6 +929,7 @@ static const GskSlTypeClass GSK_SL_TYPE_VECTOR = {
   gsk_sl_type_vector_can_convert,
   gsk_sl_type_vector_write_spv,
   gsk_sl_type_vector_print_value,
+  gsk_sl_type_vector_value_equal,
   gsk_sl_type_vector_write_value_spv
 };
 
@@ -997,6 +1081,29 @@ gsk_sl_type_matrix_print_value (const GskSlType *type,
   gsk_sl_printer_append (printer, ")");
 }
 
+static gboolean
+gsk_sl_type_matrix_value_equal (const GskSlType *type,
+                                gconstpointer    a,
+                                gconstpointer    b)
+{
+  GskSlTypeMatrix *matrix = (GskSlTypeMatrix *) type;
+  guint i;
+  guchar *adata, *bdata;
+
+  adata = a;
+  bdata = b;
+
+  for (i = 0; i < matrix->rows * matrix->columns; i++)
+    {
+      if (!scalar_infos[matrix->scalar].value_equal (adata, bdata))
+        return FALSE;
+      adata += scalar_infos[matrix->scalar].size;
+      bdata += scalar_infos[matrix->scalar].size;
+    }
+
+  return TRUE;
+}
+
 static guint32
 gsk_sl_type_matrix_write_value_spv (GskSlType    *type,
                                     GskSpvWriter *writer,
@@ -1046,6 +1153,7 @@ static const GskSlTypeClass GSK_SL_TYPE_MATRIX = {
   gsk_sl_type_matrix_can_convert,
   gsk_sl_type_matrix_write_spv,
   gsk_sl_type_matrix_print_value,
+  gsk_sl_type_matrix_value_equal,
   gsk_sl_type_matrix_write_value_spv
 };
 
@@ -1197,6 +1305,29 @@ gsk_sl_type_struct_print_value (const GskSlType *type,
   gsk_sl_printer_append (printer, ")");
 }
 
+static gboolean
+gsk_sl_type_struct_value_equal (const GskSlType *type,
+                                gconstpointer    a,
+                                gconstpointer    b)
+{
+  GskSlTypeStruct *struc = (GskSlTypeStruct *) type;
+  guint i;
+  guchar *adata, *bdata;
+
+  adata = a;
+  bdata = b;
+
+  for (i = 0; i < struc->n_members; i++)
+    {
+      if (!gsk_sl_type_value_equal (struc->members[i].type,
+                                    adata + struc->members[i].offset,
+                                    bdata + struc->members[i].offset))
+        return FALSE;
+    }
+
+  return TRUE;
+}
+
 static guint32
 gsk_sl_type_struct_write_value_spv (GskSlType    *type,
                                     GskSpvWriter *writer,
@@ -1248,6 +1379,7 @@ static const GskSlTypeClass GSK_SL_TYPE_STRUCT = {
   gsk_sl_type_struct_can_convert,
   gsk_sl_type_struct_write_spv,
   gsk_sl_type_struct_print_value,
+  gsk_sl_type_struct_value_equal,
   gsk_sl_type_struct_write_value_spv
 };
 
@@ -1405,6 +1537,29 @@ gsk_sl_type_block_print_value (const GskSlType *type,
   gsk_sl_printer_append (printer, ")");
 }
 
+static gboolean
+gsk_sl_type_block_value_equal (const GskSlType *type,
+                               gconstpointer    a,
+                               gconstpointer    b)
+{
+  GskSlTypeBlock *block = (GskSlTypeBlock *) type;
+  guint i;
+  guchar *adata, *bdata;
+
+  adata = a;
+  bdata = b;
+
+  for (i = 0; i < block->n_members; i++)
+    {
+      if (!gsk_sl_type_value_equal (block->members[i].type,
+                                    adata + block->members[i].offset,
+                                    bdata + block->members[i].offset))
+        return FALSE;
+    }
+
+  return TRUE;
+}
+
 static guint32
 gsk_sl_type_block_write_value_spv (GskSlType    *type,
                                    GskSpvWriter *writer,
@@ -1456,6 +1611,7 @@ static const GskSlTypeClass GSK_SL_TYPE_BLOCK = {
   gsk_sl_type_block_can_convert,
   gsk_sl_type_block_write_spv,
   gsk_sl_type_block_print_value,
+  gsk_sl_type_block_value_equal,
   gsk_sl_type_block_write_value_spv
 };
 
@@ -2253,6 +2409,14 @@ gsk_sl_type_print_value (const GskSlType *type,
                          gpointer         value)
 {
   type->class->print_value (type, printer, value);
+}
+
+gboolean
+gsk_sl_type_value_equal (const GskSlType *type,
+                         gconstpointer    a,
+                         gconstpointer    b)
+{
+  return type->class->value_equal (type, a, b);
 }
 
 guint32
