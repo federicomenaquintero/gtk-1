@@ -993,8 +993,29 @@ gsk_sl_expression_function_call_get_return_type (const GskSlExpression *expressi
 static GskSlValue *
 gsk_sl_expression_function_call_get_constant (const GskSlExpression *expression)
 {
-  /* FIXME: some functions are constant */
-  return NULL;
+  const GskSlExpressionFunctionCall *function_call = (const GskSlExpressionFunctionCall *) expression;
+  GskSlValue *values[function_call->n_arguments];
+  GskSlValue *result;
+  guint i;
+
+  for (i = 0; i < function_call->n_arguments; i++)
+    {
+      values[i] = gsk_sl_expression_get_constant (function_call->arguments[i]);
+      if (values[i] == NULL)
+        {
+          guint j;
+          for (j = 0; j < i; j++)
+            gsk_sl_value_free (values[j]);
+          return NULL;
+        }
+    }
+
+  result = gsk_sl_function_get_constant (function_call->function, values, function_call->n_arguments);
+
+  for (i = 0; i < function_call->n_arguments; i++)
+    gsk_sl_value_free (values[i]);
+
+  return result;
 }
 
 static guint32
