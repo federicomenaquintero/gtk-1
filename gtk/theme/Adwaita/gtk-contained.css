@@ -1917,6 +1917,23 @@ stackswitcher button.text-button { min-width: 100px; }
 
 stackswitcher button.circular, stackswitcher button.text-button.circular { min-width: 32px; min-height: 32px; padding: 0; }
 
+/********** GtkListBox Drag and Drop * */
+.row:not(:first-child) { border-top: 1px solid alpha(gray,0.5); border-bottom: 1px solid transparent;  }
+
+.row:first-child { border-top: 1px solid transparent; border-bottom: 1px solid transparent; }
+
+.row:last-child {  border-top: 1px solid alpha(gray,0.5); border-bottom: 1px solid alpha(gray,0.5); }
+
+.row.drag-icon { background: @theme_base_color; border: 1px solid @borders; }
+
+.row.drag-row { color: gray; background: alpha(gray,0.2); }
+
+.row.drag-hover image, .row.drag-hover label { color: @theme_text_color; }
+
+.row.drag-hover-top { border-top: 48px solid @theme_bg_color; }
+
+.row.drag-hover-bottom { border-bottom: 1px solid @theme_bg_color; }
+
 /********* Emoji * */
 popover.emoji-picker { padding-left: 0; padding-right: 0; }
 

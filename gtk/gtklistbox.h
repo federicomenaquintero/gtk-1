@@ -308,6 +308,9 @@ void           gtk_list_box_bind_model                   (GtkListBox            
                                                           gpointer                      user_data,
                                                           GDestroyNotify                user_data_free_func);
 
+void           gtk_list_box_set_reorderable              (GtkListBox                   *box,
+                                                          gboolean                      reorderable);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GtkListBox, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GtkListBoxRow, g_object_unref)
 

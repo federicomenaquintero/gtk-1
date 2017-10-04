@@ -106,6 +106,7 @@ typedef struct
   GtkGesture *multipress_gesture;
 
   /* DnD */
+  gboolean reorderable;
   GtkListBoxRow *drag_highlighted_row;
 
   int n_visible_rows;
@@ -149,6 +150,7 @@ enum {
   PROP_0,
   PROP_SELECTION_MODE,
   PROP_ACTIVATE_ON_SINGLE_CLICK,
+  PROP_REORDERABLE,
   LAST_PROPERTY
 };
 
@@ -299,6 +301,9 @@ gtk_list_box_get_property (GObject    *obj,
     case PROP_ACTIVATE_ON_SINGLE_CLICK:
       g_value_set_boolean (value, priv->activate_single_click);
       break;
+    case PROP_REORDERABLE:
+      g_value_set_boolean (value, priv->reorderable);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, property_id, pspec);
       break;
@@ -320,6 +325,9 @@ gtk_list_box_set_property (GObject      *obj,
       break;
     case PROP_ACTIVATE_ON_SINGLE_CLICK:
       gtk_list_box_set_activate_on_single_click (box, g_value_get_boolean (value));
+      break;
+    case PROP_REORDERABLE:
+      gtk_list_box_set_reorderable (box, g_value_get_boolean (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, property_id, pspec);
@@ -404,6 +412,13 @@ gtk_list_box_class_init (GtkListBoxClass *klass)
                           P_("Activate row on a single click"),
                           TRUE,
                           G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY);
+
+  properties[PROP_REORDERABLE] =
+      g_param_spec_boolean ("reorderable",
+                            P_("Reorderable"),
+                            P_("Can reorder rows"),
+                            FALSE,
+                            G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY);
 
   g_object_class_install_properties (object_class, LAST_PROPERTY, properties);
 
@@ -1328,6 +1343,206 @@ gtk_list_box_got_row_changed (GtkListBox    *box,
       gtk_list_box_update_header (box, next);
       gtk_list_box_update_header (box, prev_next);
     }
+}
+
+static GtkListBoxRow *
+get_last_row (GtkListBox *box)
+{
+  gint pos = g_sequence_get_length (BOX_PRIV (box)->children);
+
+  return gtk_list_box_get_row_at_index (box, pos - 1);
+}
+
+static GtkListBoxRow *
+get_row_before (GtkListBox    *box,
+                GtkListBoxRow *row)
+{
+  int pos = gtk_list_box_row_get_index (row);
+
+  return gtk_list_box_get_row_at_index (box, pos - 1);
+}
+
+static GtkListBoxRow *
+get_row_after (GtkListBox    *box,
+               GtkListBoxRow *row)
+{
+  int pos = gtk_list_box_row_get_index (row);
+
+  return gtk_list_box_get_row_at_index (box, pos + 1);
+}
+
+static void
+drag_data_received (GtkWidget        *widget,
+                    GdkDragContext   *context,
+                    gint              x,
+                    gint              y,
+                    GtkSelectionData *selection_data,
+                    guint             info,
+                    guint32           time,
+                    gpointer          data)
+{
+  GtkListBox *box = GTK_LIST_BOX (widget);
+  GtkWidget *row_before;
+  GtkWidget *row_after;
+  GtkWidget *row;
+  GtkWidget *source;
+  gboolean   success = TRUE;
+  int pos;
+
+  row_before = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "row-before"));
+  row_after = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "row-after"));
+
+  g_object_set_data (G_OBJECT (box), "row-before", NULL);
+  g_object_set_data (G_OBJECT (box), "row-after", NULL);
+
+  if (row_before)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (row_before), "drag-hover-bottom");
+  if (row_after)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (row_after), "drag-hover-top");
+
+  row = (gpointer)* (gpointer*)gtk_selection_data_get_data (selection_data);
+  source = gtk_widget_get_ancestor (row, GTK_TYPE_LIST_BOX_ROW);
+
+  if (source == row_after)
+    {
+      success = FALSE;
+      goto out;
+    }
+
+  g_object_ref (source);
+  gtk_container_remove (GTK_CONTAINER (gtk_widget_get_parent (source)), source);
+
+  if (row_after)
+    pos = gtk_list_box_row_get_index (GTK_LIST_BOX_ROW (row_after));
+  else
+    pos = gtk_list_box_row_get_index (GTK_LIST_BOX_ROW (row_before)) + 1;
+
+  gtk_list_box_insert (box, source, pos);
+  g_object_unref (source);
+
+out:
+  gtk_drag_finish (context, success, TRUE, time);
+}
+
+static gboolean
+drag_motion (GtkWidget      *widget,
+             GdkDragContext *context,
+             int x,
+             int y,
+             guint time,
+             gpointer data)
+{
+  GtkListBox *box = GTK_LIST_BOX (widget);
+  GtkAllocation alloc;
+  GtkWidget *row;
+  int hover_row_y;
+  int hover_row_height;
+  GtkWidget *drag_row;
+  GtkWidget *row_before;
+  GtkWidget *row_after;
+
+  row = GTK_WIDGET (gtk_list_box_get_row_at_y (box, y));
+
+  drag_row = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "drag-row"));
+  row_before = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "row-before"));
+  row_after = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "row-after"));
+
+  gtk_style_context_remove_class (gtk_widget_get_style_context (drag_row), "drag-hover");
+  if (row_before)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (row_before), "drag-hover-bottom");
+  if (row_after)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (row_after), "drag-hover-top");
+
+  if (row)
+    {
+      gtk_widget_get_allocation (row, &alloc);
+      hover_row_y = alloc.y;
+      hover_row_height = alloc.height;
+
+      if (y < hover_row_y + hover_row_height/2)
+        {
+          row_after = row;
+          row_before = GTK_WIDGET (get_row_before (box, GTK_LIST_BOX_ROW (row)));
+        }
+      else
+        {
+          row_before = row;
+          row_after = GTK_WIDGET (get_row_after (box, GTK_LIST_BOX_ROW (row)));
+        }
+    }
+  else
+    {
+      row_before = GTK_WIDGET (get_last_row (box));
+      row_after = NULL;
+    }
+
+  g_object_set_data (G_OBJECT (widget), "row-before", row_before);
+  g_object_set_data (G_OBJECT (widget), "row-after", row_after);
+
+  if (drag_row == row_before || drag_row == row_after)
+    {
+      gtk_style_context_add_class (gtk_widget_get_style_context (drag_row), "drag-hover");
+      return FALSE;
+    }
+
+  if (row_before)
+    gtk_style_context_add_class (gtk_widget_get_style_context (row_before), "drag-hover-bottom");
+  if (row_after)
+    gtk_style_context_add_class (gtk_widget_get_style_context (row_after), "drag-hover-top");
+
+  return TRUE;
+}
+
+static void
+drag_leave (GtkWidget *widget,
+            GdkDragContext *context,
+            guint time)
+{
+  GtkWidget *drag_row;
+  GtkWidget *row_before;
+  GtkWidget *row_after;
+
+  drag_row = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "drag-row"));
+  row_before = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "row-before"));
+  row_after = GTK_WIDGET (g_object_get_data (G_OBJECT (widget), "row-after"));
+
+  gtk_style_context_remove_class (gtk_widget_get_style_context (drag_row), "drag-hover");
+  if (row_before)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (row_before), "drag-hover-bottom");
+  if (row_after)
+    gtk_style_context_remove_class (gtk_widget_get_style_context (row_after), "drag-hover-top");
+}
+
+static GtkTargetEntry drag_target_entries[] = {
+  { "GTK_LIST_BOX_ROW", GTK_TARGET_SAME_APP, 0 }
+};
+
+void
+gtk_list_box_set_reorderable (GtkListBox *box,
+                              gboolean    reorderable)
+{
+  g_return_if_fail (GTK_IS_LIST_BOX (box));
+
+  reorderable = reorderable != FALSE;
+
+  if (BOX_PRIV (box)->reorderable == reorderable)
+      return;
+
+  if (reorderable)
+    {
+      gtk_drag_dest_set (GTK_WIDGET (box),
+                         GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
+                         drag_target_entries, 1,
+                         GDK_ACTION_MOVE);
+
+      g_signal_connect (box, "drag-data-received", G_CALLBACK (drag_data_received), NULL);
+      g_signal_connect (box, "drag-motion", G_CALLBACK (drag_motion), NULL);
+      g_signal_connect (box, "drag-leave", G_CALLBACK (drag_leave), NULL);
+    }
+
+  BOX_PRIV (box)->reorderable = reorderable;
+
+  g_object_notify_by_pspec (G_OBJECT (box), properties[PROP_REORDERABLE]);
 }
 
 /**
@@ -2554,6 +2769,92 @@ gtk_list_box_insert_css_node (GtkListBox    *box,
                              sibling);
 }
 
+static void
+drag_begin (GtkWidget      *widget,
+            GdkDragContext *context,
+            gpointer        data)
+{
+  GtkWidget *row;
+  GtkAllocation alloc;
+  cairo_surface_t *surface;
+  cairo_t *cr;
+  int x, y;
+
+  row = gtk_widget_get_ancestor (widget, GTK_TYPE_LIST_BOX_ROW);
+  gtk_widget_get_allocation (row, &alloc);
+  surface = gdk_window_create_similar_surface (gtk_widget_get_window (widget),
+                                               CAIRO_CONTENT_COLOR_ALPHA,
+                                               alloc.width, alloc.height);
+  cr = cairo_create (surface);
+
+  gtk_style_context_add_class (gtk_widget_get_style_context (row), "drag-icon");
+  gtk_widget_draw (row, cr);
+  gtk_style_context_remove_class (gtk_widget_get_style_context (row), "drag-icon");
+
+  gtk_widget_translate_coordinates (widget, row, 0, 0, &x, &y);
+  cairo_surface_set_device_offset (surface, -x, -y);
+  gtk_drag_set_icon_surface (context, surface);
+
+  cairo_destroy (cr);
+  cairo_surface_destroy (surface);
+
+  g_object_set_data (G_OBJECT (gtk_widget_get_parent (row)), "drag-row", row);
+  gtk_style_context_add_class (gtk_widget_get_style_context (row), "draw-row");
+}
+
+static void
+drag_end (GtkWidget      *widget,
+          GdkDragContext *context,
+          gpointer        user_data)
+{
+  GtkWidget *row;
+
+  row = gtk_widget_get_ancestor (widget, GTK_TYPE_LIST_BOX_ROW);
+  g_object_set_data (G_OBJECT (gtk_widget_get_parent (row)), "drag-row", NULL);
+  gtk_style_context_remove_class (gtk_widget_get_style_context (row), "drag-row");
+  gtk_style_context_remove_class (gtk_widget_get_style_context (row), "drag-hover");
+}
+
+static void
+drag_data_get (GtkWidget        *widget,
+               GdkDragContext   *context,
+               GtkSelectionData *selection_data,
+               guint             info,
+               guint             time,
+               gpointer          data)
+{
+  gtk_selection_data_set (selection_data,
+                          gdk_atom_intern_static_string ("GTK_LIST_BOX_ROW"),
+                          32,
+                          (const guchar *)&widget,
+                          sizeof (gpointer));
+}
+
+static GtkListBoxRow *
+attach_handler (GtkWidget *child)
+{
+  GtkWidget *row;
+  GtkWidget *handle;
+  GtkWidget *box;
+
+  row = gtk_list_box_row_new ();
+  gtk_style_context_add_class (gtk_widget_get_style_context (GTK_WIDGET (row)), "row");
+
+  handle = gtk_image_new_from_icon_name ("open-menu-symbolic", GTK_ICON_SIZE_MENU);
+  gtk_drag_source_set (handle, GDK_BUTTON1_MASK, drag_target_entries, 1, GDK_ACTION_MOVE);
+  g_signal_connect (handle, "drag-begin", G_CALLBACK (drag_begin), NULL);
+  g_signal_connect (handle, "drag-end", G_CALLBACK (drag_end), NULL);
+  g_signal_connect (handle, "drag-data-get", G_CALLBACK (drag_data_get), NULL);
+
+  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_container_add (GTK_CONTAINER (box), handle);
+  gtk_container_add (GTK_CONTAINER (box), child);
+
+  gtk_container_add (GTK_CONTAINER (row), box);
+
+  return GTK_LIST_BOX_ROW (row);
+}
+
 /**
  * gtk_list_box_insert:
  * @box: a #GtkListBox
@@ -2585,8 +2886,8 @@ gtk_list_box_insert (GtkListBox *box,
     row = GTK_LIST_BOX_ROW (child);
   else
     {
-      row = GTK_LIST_BOX_ROW (gtk_list_box_row_new ());
-      gtk_container_add (GTK_CONTAINER (row), child);
+      //row = GTK_LIST_BOX_ROW (gtk_list_box_row_new ());
+      row = attach_handler (child);
     }
 
   if (priv->sort_func != NULL)
