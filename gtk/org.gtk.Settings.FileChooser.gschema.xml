@@ -43,6 +43,15 @@
     <value nick='12h' value='1'/>
   </enum>
 
+  <!-- The values/nicks for FolderView are copied from
+       org.gnome.nautilus.FolderView, in case we ever end up sharing
+       the same configuration.
+  -->
+  <enum id="org.gtk.Settings.FileChooser.FolderView">
+    <value nick="icon-view" value="0"/>
+    <value nick="list-view" value="1"/>
+  </enum>
+
   <enum id='org.gtk.Settings.FileChooser.DateFormat'>
     <value nick='regular' value='0'/>
     <value nick='with-time' value='1'/>
@@ -61,6 +70,17 @@
         possible values for these modes are "path-bar" and "filename-entry".
       </description>
     </key>
+
+    <!-- This key name is the same as
+	 /org/gnome/nautilus/default-folder-viewer.  We make it this
+	 in case we ever end up sharing the same configuration.
+    -->
+    <key name="default-folder-viewer" enum="org.gtk.Settings.FileChooser.FolderView">
+      <default>'list-view'</default>
+      <summary>Default folder viewer</summary>
+      <description>Type of view for file folders.  Possible values are “list-view” and “icon-view”.</description>
+    </key>
+
     <key name='show-hidden' type='b'>
       <default>false</default>
       <summary>Show hidden files</summary>
