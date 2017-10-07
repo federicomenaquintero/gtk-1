@@ -65,6 +65,32 @@
                                   </packing>
                                 </child>
                                 <child>
+                                  <object class="GtkButton" id="view_toggle_button">
+                                    <property name="visible">True</property>
+                                    <property name="tooltip_text" translatable="yes">Toggle view</property>
+				    <style>
+				      <class name="image-button"/>
+				    </style>
+                                    <child>
+                                      <object class="GtkImage" id="view_toggle_icon">
+                                        <property name="visible">True</property>
+                                        <property name="icon_size">1</property>
+                                      </object>
+                                    </child>
+                                    <child internal-child="accessible">
+                                      <object class="AtkObject" id="view_toggle_button-atkobject">
+                                        <property name="AtkObject::accessible-name" translatable="yes">View mode toggle</property>
+                                        <property name="AtkObject::accessible-description" translatable="yes">Toggle between grid and list view</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
                                   <object class="GtkMenuButton" id="browse_new_folder_button">
                                     <property name="tooltip-text" translatable="yes">Create Folder</property>
                                     <property name="use-underline">1</property>
