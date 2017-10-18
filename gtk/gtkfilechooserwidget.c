@@ -2463,12 +2463,6 @@ long_press_cb (GtkGesture           *gesture,
   file_list_show_popover (impl, x, y);
 }
 
-typedef struct {
-  OperationMode operation_mode;
-  gint general_column;
-  gint model_column;
-} ColumnMap;
-
 /* Sets the sort column IDs for the file list; needs to be done whenever we
  * change the model on the treeview.
  */
