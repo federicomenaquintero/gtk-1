@@ -295,14 +295,6 @@ struct _GtkFileChooserWidgetPrivate {
 
   GtkBookmarksManager *bookmarks_manager;
 
-  int num_volumes;
-  int num_shortcuts;
-  int num_bookmarks;
-
-  gulong volumes_changed_id;
-  gulong bookmarks_changed_id;
-
-  GFile *current_volume_file;
   GFile *current_folder;
   GFile *preview_file;
   char *preview_display_name;
@@ -652,9 +644,6 @@ gtk_file_chooser_widget_finalize (GObject *object)
 
   if (priv->current_filter)
     g_object_unref (priv->current_filter);
-
-  if (priv->current_volume_file)
-    g_object_unref (priv->current_volume_file);
 
   if (priv->current_folder)
     g_object_unref (priv->current_folder);
