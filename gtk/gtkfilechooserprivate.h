@@ -1,3 +1,4 @@
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-file-style: "gnu" -*- */
 /* GTK - The GIMP Toolkit
  * gtkfilechooserprivate.h: Interface definition for file selector GUIs
  * Copyright (C) 2003, Red Hat, Inc.

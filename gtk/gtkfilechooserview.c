@@ -1,4 +1,4 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-indentation-style: gnu -*- */
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-file-style: "gnu" -*- */
 /* GTK - The GIMP Toolkit
  * gtkfilechooserview.h: Folder view interface for the file chooser
  * Copyright (C) 2017 Federico Mena-Quintero
