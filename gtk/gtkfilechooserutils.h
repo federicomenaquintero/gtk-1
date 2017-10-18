@@ -1,3 +1,4 @@
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-file-style: "gnu" -*- */
 /* GTK - The GIMP Toolkit
  * gtkfilechooserutils.h: Private utility functions useful for
  *                        implementing a GtkFileChooser interface
@@ -55,6 +56,56 @@ GList *_gtk_file_chooser_extract_recent_folders (GList *infos);
 GSettings *_gtk_file_chooser_get_settings_for_widget (GtkWidget *widget);
 
 gchar * _gtk_file_chooser_label_for_file (GFile *file);
+
+typedef enum {
+  /* the first 3 must be these due to settings caching sort column */
+  MODEL_COL_NAME,
+  MODEL_COL_SIZE,
+  MODEL_COL_TIME,
+  MODEL_COL_FILE,
+  MODEL_COL_NAME_COLLATED,
+  MODEL_COL_IS_FOLDER,
+  MODEL_COL_IS_SENSITIVE,
+  MODEL_COL_SURFACE,
+  MODEL_COL_SIZE_TEXT,
+  MODEL_COL_DATE_TEXT,
+  MODEL_COL_TIME_TEXT,
+  MODEL_COL_LOCATION_TEXT,
+  MODEL_COL_ELLIPSIZE,
+  MODEL_COL_NUM_COLUMNS
+} GtkFileChooserModelCol;
+
+typedef enum {
+  STARTUP_MODE_RECENT,
+  STARTUP_MODE_CWD
+} StartupMode;
+
+typedef enum {
+  CLOCK_FORMAT_24,
+  CLOCK_FORMAT_12
+} ClockFormat;
+
+typedef enum {
+  DATE_FORMAT_REGULAR,
+  DATE_FORMAT_WITH_TIME
+} DateFormat;
+
+typedef struct
+{
+  gint        sort_column;
+  GtkSortType sort_order;
+  StartupMode startup_mode;
+  gint        sidebar_width;
+  DateFormat  date_format;
+  ClockFormat clock_format;
+
+  guint show_hidden            : 1;
+  guint show_size_column       : 1;
+  guint sort_directories_first : 1;
+} GtkFileChooserSettings;
+
+GtkFileChooserSettings _gtk_file_chooser_read_settings (GSettings *settings);
+GtkFileChooserSettings _gtk_file_chooser_get_default_settings (void);
 
 G_END_DECLS
 

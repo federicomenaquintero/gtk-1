@@ -1,3 +1,4 @@
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-file-style: "gnu" -*- */
 /* GTK - The GIMP Toolkit
  * gtkfilechooserutils.c: Private utility functions useful for
  *                        implementing a GtkFileChooser interface
@@ -547,4 +548,42 @@ delegate_get_choice (GtkFileChooser  *chooser,
                      const char      *id)
 {
   return gtk_file_chooser_get_choice (get_delegate (chooser), id);
+}
+
+GtkFileChooserSettings
+_gtk_file_chooser_read_settings (GSettings *settings)
+{
+  GtkFileChooserSettings s;
+
+  s.sort_column      = g_settings_get_enum    (settings, SETTINGS_KEY_SORT_COLUMN);
+  s.sort_order       = g_settings_get_enum    (settings, SETTINGS_KEY_SORT_ORDER);
+  s.startup_mode     = g_settings_get_enum    (settings, SETTINGS_KEY_STARTUP_MODE);
+  s.sidebar_width    = g_settings_get_int     (settings, SETTINGS_KEY_SIDEBAR_WIDTH);
+  s.date_format      = g_settings_get_enum    (settings, SETTINGS_KEY_DATE_FORMAT);
+  s.clock_format     = g_settings_get_enum    (settings, SETTINGS_KEY_CLOCK_FORMAT);
+
+  s.show_hidden            = g_settings_get_boolean (settings, SETTINGS_KEY_SHOW_HIDDEN);
+  s.show_size_column       = g_settings_get_boolean (settings, SETTINGS_KEY_SHOW_SIZE_COLUMN);
+  s.sort_directories_first = g_settings_get_boolean (settings, SETTINGS_KEY_SORT_DIRECTORIES_FIRST);
+
+  return s;
+}
+
+GtkFileChooserSettings
+_gtk_file_chooser_get_default_settings (void)
+{
+  GtkFileChooserSettings s;
+
+  s.sort_column      = MODEL_COL_NAME;
+  s.sort_order       = GTK_SORT_ASCENDING;
+  s.startup_mode     = STARTUP_MODE_RECENT;
+  s.sidebar_width    = 148;
+  s.date_format      = DATE_FORMAT_REGULAR;
+  s.clock_format     = CLOCK_FORMAT_24;
+
+  s.show_hidden            = FALSE;
+  s.show_size_column       = TRUE;
+  s.sort_directories_first = FALSE;
+
+  return s;
 }

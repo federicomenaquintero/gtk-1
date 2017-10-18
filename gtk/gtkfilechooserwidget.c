@@ -1,4 +1,4 @@
-/* -*- Mode: C; c-file-style: "gnu"; tab-width: 8 -*- */
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-file-style: "gnu" -*- */
 /* GTK - The GIMP Toolkit
  * gtkfilechooserwidget.c: Embeddable file selector widget
  * Copyright (C) 2003, Red Hat, Inc.
@@ -192,21 +192,6 @@ typedef enum {
   OPERATION_MODE_RECENT
 } OperationMode;
 
-typedef enum {
-  STARTUP_MODE_RECENT,
-  STARTUP_MODE_CWD
-} StartupMode;
-
-typedef enum {
-  CLOCK_FORMAT_24,
-  CLOCK_FORMAT_12
-} ClockFormat;
-
-typedef enum {
-  DATE_FORMAT_REGULAR,
-  DATE_FORMAT_WITH_TIME
-} DateFormat;
-
 struct _GtkFileChooserWidgetPrivate {
   GtkFileChooserAction action;
 
@@ -258,7 +243,6 @@ struct _GtkFileChooserWidgetPrivate {
 
   GtkWidget *places_sidebar;
   GtkWidget *places_view;
-  StartupMode startup_mode;
 
   /* OPERATION_MODE_SEARCH */
   GtkWidget *search_entry;
@@ -344,8 +328,7 @@ struct _GtkFileChooserWidgetPrivate {
   gulong toplevel_set_focus_id;
   GtkWidget *toplevel_last_focus_widget;
 
-  gint sort_column;
-  GtkSortType sort_order;
+  GtkFileChooserSettings settings;
 
   /* Flags */
 
@@ -353,14 +336,10 @@ struct _GtkFileChooserWidgetPrivate {
   guint preview_widget_active : 1;
   guint use_preview_label : 1;
   guint select_multiple : 1;
-  guint show_hidden : 1;
   guint show_hidden_set : 1;
-  guint sort_directories_first : 1;
-  guint show_time : 1;
   guint do_overwrite_confirmation : 1;
   guint list_sort_ascending : 1;
   guint shortcuts_current_folder_active : 1;
-  guint show_size_column : 1;
   guint create_folders : 1;
   guint auto_selecting_first_row : 1;
 };
@@ -394,23 +373,6 @@ static guint signals[LAST_SIGNAL] = { 0 };
                          "standard::content-type,time::modified,time::access," \
                          "access::can-rename,access::can-delete,access::can-trash," \
                          "standard::target-uri"
-enum {
-  /* the first 3 must be these due to settings caching sort column */
-  MODEL_COL_NAME,
-  MODEL_COL_SIZE,
-  MODEL_COL_TIME,
-  MODEL_COL_FILE,
-  MODEL_COL_NAME_COLLATED,
-  MODEL_COL_IS_FOLDER,
-  MODEL_COL_IS_SENSITIVE,
-  MODEL_COL_SURFACE,
-  MODEL_COL_SIZE_TEXT,
-  MODEL_COL_DATE_TEXT,
-  MODEL_COL_TIME_TEXT,
-  MODEL_COL_LOCATION_TEXT,
-  MODEL_COL_ELLIPSIZE,
-  MODEL_COL_NUM_COLUMNS
-};
 
 /* This list of types is passed to _gtk_file_system_model_new*() */
 #define MODEL_COLUMN_TYPES                                      \
@@ -1824,10 +1786,10 @@ change_show_size_state (GSimpleAction *action,
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
   g_simple_action_set_state (action, state);
-  priv->show_size_column = g_variant_get_boolean (state);
+  priv->settings.show_size_column = g_variant_get_boolean (state);
 
   gtk_tree_view_column_set_visible (priv->list_size_column,
-                                    priv->show_size_column);
+                                    priv->settings.show_size_column);
 }
 
 static void
@@ -1840,7 +1802,7 @@ change_sort_directories_first_state (GSimpleAction *action,
   GtkTreeSortable *sortable;
 
   g_simple_action_set_state (action, state);
-  priv->sort_directories_first = g_variant_get_boolean (state);
+  priv->settings.sort_directories_first = g_variant_get_boolean (state);
 
   /* force resorting */
   sortable = GTK_TREE_SORTABLE (priv->browse_files_model);
@@ -1849,10 +1811,10 @@ change_sort_directories_first_state (GSimpleAction *action,
 
   gtk_tree_sortable_set_sort_column_id (sortable,
                                         GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID,
-                                        priv->sort_order);
+                                        priv->settings.sort_order);
   gtk_tree_sortable_set_sort_column_id (sortable,
-                                        priv->sort_column,
-                                        priv->sort_order);
+                                        priv->settings.sort_column,
+                                        priv->settings.sort_order);
 }
 
 static void
@@ -1893,7 +1855,7 @@ update_time_renderer_visible (GtkFileChooserWidget *impl)
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
   g_object_set (priv->list_time_renderer,
-                "visible", priv->show_time,
+                "visible", priv->settings.date_format == DATE_FORMAT_WITH_TIME,
                 NULL);
   clear_model_cache (impl, MODEL_COL_DATE_TEXT);
   clear_model_cache (impl, MODEL_COL_TIME_TEXT);
@@ -1909,7 +1871,15 @@ change_show_time_state (GSimpleAction *action,
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
   g_simple_action_set_state (action, state);
-  priv->show_time = g_variant_get_boolean (state);
+  if (g_variant_get_boolean (state))
+    {
+      priv->settings.date_format = DATE_FORMAT_WITH_TIME;
+    }
+  else
+    {
+      priv->settings.date_format = DATE_FORMAT_REGULAR;
+    }
+
   update_time_renderer_visible (impl);
 }
 
@@ -2313,16 +2283,16 @@ file_list_update_popover (GtkFileChooserWidget *impl)
 
   actions = gtk_widget_get_action_group (priv->browse_files_tree_view, "item");
   action = g_action_map_lookup_action (G_ACTION_MAP (actions), "toggle-show-hidden");
-  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->show_hidden));
+  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->settings.show_hidden));
 
   action = g_action_map_lookup_action (G_ACTION_MAP (actions), "toggle-show-size");
-  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->show_size_column));
+  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->settings.show_size_column));
 
   action = g_action_map_lookup_action (G_ACTION_MAP (actions), "toggle-show-time");
-  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->show_time));
+  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->settings.date_format == DATE_FORMAT_WITH_TIME));
 
   action = g_action_map_lookup_action (G_ACTION_MAP (actions), "toggle-sort-dirs-first");
-  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->sort_directories_first));
+  g_simple_action_set_state (G_SIMPLE_ACTION (action), g_variant_new_boolean (priv->settings.sort_directories_first));
 }
 
 static void
@@ -3362,9 +3332,9 @@ set_show_hidden (GtkFileChooserWidget *impl,
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
-  if (priv->show_hidden != show_hidden)
+  if (priv->settings.show_hidden != show_hidden)
     {
-      priv->show_hidden = show_hidden;
+      priv->settings.show_hidden = show_hidden;
 
       if (priv->browse_files_model)
         _gtk_file_system_model_set_show_hidden (priv->browse_files_model, show_hidden);
@@ -3550,7 +3520,7 @@ gtk_file_chooser_widget_get_property (GObject    *object,
       break;
 
     case GTK_FILE_CHOOSER_PROP_SHOW_HIDDEN:
-      g_value_set_boolean (value, priv->show_hidden);
+      g_value_set_boolean (value, priv->settings.show_hidden);
       break;
 
     case GTK_FILE_CHOOSER_PROP_DO_OVERWRITE_CONFIRMATION:
@@ -3848,45 +3818,22 @@ set_sort_column (GtkFileChooserWidget *impl)
     return;
 
   gtk_tree_sortable_set_sort_column_id (sortable,
-                                        priv->sort_column,
-                                        priv->sort_order);
+                                        priv->settings.sort_column,
+                                        priv->settings.sort_order);
 }
 
 static void
 settings_load (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  gboolean show_hidden;
-  gboolean show_size_column;
-  gboolean sort_directories_first;
-  DateFormat date_format;
-  gint sort_column;
-  GtkSortType sort_order;
-  StartupMode startup_mode;
-  gint sidebar_width;
   GSettings *settings;
 
   settings = _gtk_file_chooser_get_settings_for_widget (GTK_WIDGET (impl));
-
-  show_hidden = g_settings_get_boolean (settings, SETTINGS_KEY_SHOW_HIDDEN);
-  show_size_column = g_settings_get_boolean (settings, SETTINGS_KEY_SHOW_SIZE_COLUMN);
-  sort_column = g_settings_get_enum (settings, SETTINGS_KEY_SORT_COLUMN);
-  sort_order = g_settings_get_enum (settings, SETTINGS_KEY_SORT_ORDER);
-  sidebar_width = g_settings_get_int (settings, SETTINGS_KEY_SIDEBAR_WIDTH);
-  startup_mode = g_settings_get_enum (settings, SETTINGS_KEY_STARTUP_MODE);
-  sort_directories_first = g_settings_get_boolean (settings, SETTINGS_KEY_SORT_DIRECTORIES_FIRST);
-  date_format = g_settings_get_enum (settings, SETTINGS_KEY_DATE_FORMAT);
+  priv->settings = _gtk_file_chooser_read_settings (settings);
 
   if (!priv->show_hidden_set)
-    set_show_hidden (impl, show_hidden);
-  priv->show_size_column = show_size_column;
-  gtk_tree_view_column_set_visible (priv->list_size_column, show_size_column);
-
-  priv->sort_column = sort_column;
-  priv->sort_order = sort_order;
-  priv->startup_mode = startup_mode;
-  priv->sort_directories_first = sort_directories_first;
-  priv->show_time = date_format == DATE_FORMAT_WITH_TIME;
+    set_show_hidden (impl, priv->settings.show_hidden);
+  gtk_tree_view_column_set_visible (priv->list_size_column, priv->settings.show_size_column);
 
   /* We don't call set_sort_column() here as the models may not have been
    * created yet.  The individual functions that create and set the models will
@@ -3894,7 +3841,7 @@ settings_load (GtkFileChooserWidget *impl)
    */
 
   update_time_renderer_visible (impl);
-  gtk_paned_set_position (GTK_PANED (priv->browse_widgets_hpaned), sidebar_width);
+  gtk_paned_set_position (GTK_PANED (priv->browse_widgets_hpaned), priv->settings.sidebar_width);
 }
 
 static void
@@ -3910,13 +3857,13 @@ settings_save (GtkFileChooserWidget *impl)
   g_settings_set_enum (settings, SETTINGS_KEY_LOCATION_MODE, priv->location_mode);
   g_settings_set_boolean (settings, SETTINGS_KEY_SHOW_HIDDEN,
                           gtk_file_chooser_get_show_hidden (GTK_FILE_CHOOSER (impl)));
-  g_settings_set_boolean (settings, SETTINGS_KEY_SHOW_SIZE_COLUMN, priv->show_size_column);
-  g_settings_set_boolean (settings, SETTINGS_KEY_SORT_DIRECTORIES_FIRST, priv->sort_directories_first);
-  g_settings_set_enum (settings, SETTINGS_KEY_SORT_COLUMN, priv->sort_column);
-  g_settings_set_enum (settings, SETTINGS_KEY_SORT_ORDER, priv->sort_order);
+  g_settings_set_boolean (settings, SETTINGS_KEY_SHOW_SIZE_COLUMN, priv->settings.show_size_column);
+  g_settings_set_boolean (settings, SETTINGS_KEY_SORT_DIRECTORIES_FIRST, priv->settings.sort_directories_first);
+  g_settings_set_enum (settings, SETTINGS_KEY_SORT_COLUMN, priv->settings.sort_column);
+  g_settings_set_enum (settings, SETTINGS_KEY_SORT_ORDER, priv->settings.sort_order);
   g_settings_set_int (settings, SETTINGS_KEY_SIDEBAR_WIDTH,
                       gtk_paned_get_position (GTK_PANED (priv->browse_widgets_hpaned)));
-  g_settings_set_enum (settings, SETTINGS_KEY_DATE_FORMAT, priv->show_time ? DATE_FORMAT_WITH_TIME : DATE_FORMAT_REGULAR);
+  g_settings_set_enum (settings, SETTINGS_KEY_DATE_FORMAT, priv->settings.date_format);
 
   /* Now apply the settings */
   g_settings_apply (settings);
@@ -3977,7 +3924,7 @@ set_startup_mode (GtkFileChooserWidget *impl)
   gtk_stack_set_transition_type (GTK_STACK (priv->browse_header_stack),
                                  GTK_STACK_TRANSITION_TYPE_NONE);
 
-  switch (priv->startup_mode)
+  switch (priv->settings.startup_mode)
     {
     case STARTUP_MODE_RECENT:
       if (gtk_places_sidebar_get_show_recent (GTK_PLACES_SIDEBAR (priv->places_sidebar)))
@@ -4124,7 +4071,7 @@ compare_directory (GtkFileSystemModel   *model,
   dir_a = g_value_get_boolean (_gtk_file_system_model_get_value (model, a, MODEL_COL_IS_FOLDER));
   dir_b = g_value_get_boolean (_gtk_file_system_model_get_value (model, b, MODEL_COL_IS_FOLDER));
 
-  if (priv->sort_directories_first && dir_a != dir_b)
+  if (priv->settings.sort_directories_first && dir_a != dir_b)
     return priv->list_sort_ascending ? (dir_a ? -1 : 1) : (dir_a ? 1 : -1);
 
   return 0;
@@ -4309,8 +4256,8 @@ list_sort_column_changed_cb (GtkTreeSortable       *sortable,
   if (gtk_tree_sortable_get_sort_column_id (sortable, &sort_column_id, &sort_type))
     {
       priv->list_sort_ascending = (sort_type == GTK_SORT_ASCENDING);
-      priv->sort_column = sort_column_id;
-      priv->sort_order = sort_type;
+      priv->settings.sort_column = sort_column_id;
+      priv->settings.sort_order = sort_type;
     }
 }
 
@@ -4549,7 +4496,7 @@ show_and_select_files (GtkFileChooserWidget *impl,
 
   g_assert (fsmodel == priv->browse_files_model);
 
-  enabled_hidden = priv->show_hidden;
+  enabled_hidden = priv->settings.show_hidden;
   removed_filters = (priv->current_filter == NULL);
 
   selected_a_file = FALSE;
@@ -4768,10 +4715,8 @@ my_g_format_date_for_display (GtkFileChooserWidget *impl,
   GtkFileChooserWidgetPrivate *priv = impl->priv;
   GDateTime *now, *time;
   GDateTime *now_date, *date;
-  ClockFormat clock_format;
   const gchar *format;
   gchar *date_str;
-  GSettings *settings;
   gint days_ago;
 
   time = g_date_time_new_from_unix_local (secs);
@@ -4779,9 +4724,6 @@ my_g_format_date_for_display (GtkFileChooserWidget *impl,
                                 g_date_time_get_month (time),
                                 g_date_time_get_day_of_month (time),
                                 0, 0, 0);
-
-  settings = _gtk_file_chooser_get_settings_for_widget (GTK_WIDGET (impl));
-  clock_format = g_settings_get_enum (settings, "clock-format");
 
   now = g_date_time_new_now_local ();
   now_date = g_date_time_new_local (g_date_time_get_year (now),
@@ -4793,9 +4735,9 @@ my_g_format_date_for_display (GtkFileChooserWidget *impl,
   /* Translators: see g_date_time_format() for details on the format */
   if (days_ago < 1)
     {
-      if (priv->show_time)
+      if (priv->settings.date_format == DATE_FORMAT_WITH_TIME)
         format = "";
-      else if (clock_format == CLOCK_FORMAT_24)
+      else if (priv->settings.clock_format == CLOCK_FORMAT_24)
         format = _("%H:%M");
       else
         format = _("%l:%M %p");
@@ -4832,18 +4774,14 @@ static char *
 my_g_format_time_for_display (GtkFileChooserWidget *impl,
                               glong                 secs)
 {
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
   GDateTime *time;
-  ClockFormat clock_format;
   const gchar *format;
   gchar *date_str;
-  GSettings *settings;
 
   time = g_date_time_new_from_unix_local (secs);
 
-  settings = _gtk_file_chooser_get_settings_for_widget (GTK_WIDGET (impl));
-  clock_format = g_settings_get_enum (settings, "clock-format");
-
-  if (clock_format == CLOCK_FORMAT_24)
+  if (priv->settings.clock_format == CLOCK_FORMAT_24)
     format = _("%H:%M");
   else
     format = _("%l:%M %p");
@@ -5142,7 +5080,7 @@ set_list_model (GtkFileChooserWidget  *impl,
                                               impl,
                                               MODEL_COLUMN_TYPES);
 
-  _gtk_file_system_model_set_show_hidden (priv->browse_files_model, priv->show_hidden);
+  _gtk_file_system_model_set_show_hidden (priv->browse_files_model, priv->settings.show_hidden);
 
   profile_msg ("    set sort function", NULL);
   gtk_tree_sortable_set_sort_func (GTK_TREE_SORTABLE (priv->browse_files_model), MODEL_COL_NAME, name_sort_func, impl, NULL);
@@ -8059,7 +7997,7 @@ show_hidden_handler (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
-  g_object_set (impl, "show-hidden", !priv->show_hidden, NULL);
+  g_object_set (impl, "show-hidden", !priv->settings.show_hidden, NULL);
 }
 
 static void
@@ -8624,20 +8562,18 @@ gtk_file_chooser_widget_init (GtkFileChooserWidget *impl)
   impl->priv = gtk_file_chooser_widget_get_instance_private (impl);
   priv = impl->priv;
 
+  priv->settings = _gtk_file_chooser_get_default_settings ();
+
   priv->local_only = TRUE;
   priv->preview_widget_active = TRUE;
   priv->use_preview_label = TRUE;
   priv->select_multiple = FALSE;
-  priv->show_hidden = FALSE;
-  priv->show_size_column = TRUE;
   priv->icon_size = FALLBACK_ICON_SIZE;
   priv->load_state = LOAD_EMPTY;
   priv->reload_state = RELOAD_EMPTY;
   priv->pending_select_files = NULL;
   priv->location_mode = LOCATION_MODE_PATH_BAR;
   priv->operation_mode = OPERATION_MODE_BROWSE;
-  priv->sort_column = MODEL_COL_NAME;
-  priv->sort_order = GTK_SORT_ASCENDING;
   priv->recent_manager = gtk_recent_manager_get_default ();
   priv->create_folders = TRUE;
   priv->auto_selecting_first_row = FALSE;
