@@ -33,12 +33,12 @@
 #include "gtkdragsource.h"
 #include "gtkdragdest.h"
 #include "gtkentry.h"
-#include "gtkfilechooserprivate.h"
 #include "gtkfilechooserdialog.h"
 #include "gtkfilechooserembed.h"
 #include "gtkfilechooserentry.h"
-#include "gtkfilechooserutils.h"
 #include "gtkfilechooser.h"
+#include "gtkfilechooserlistview.h"
+#include "gtkfilechoosericonview.h"
 #include "gtkfilesystem.h"
 #include "gtkfilesystemmodel.h"
 #include "gtkgrid.h"
@@ -8575,6 +8575,8 @@ gtk_file_chooser_widget_init (GtkFileChooserWidget *impl)
    */
   g_type_ensure (GTK_TYPE_PATH_BAR);
   g_type_ensure (GTK_TYPE_PLACES_VIEW);
+  g_type_ensure (GTK_TYPE_FILE_CHOOSER_LIST_VIEW);
+  g_type_ensure (GTK_TYPE_FILE_CHOOSER_ICON_VIEW);
 
   gtk_widget_init_template (GTK_WIDGET (impl));
   gtk_widget_set_size_request (priv->browse_files_tree_view, 280, -1);

@@ -486,7 +486,7 @@
       </object>
     </child>
   </object>
-  <object class="GtkTreeView" id="browse_files_tree_view">
+  <object class="GtkFileChooserListView" id="browse_files_tree_view">
     <property name="visible">1</property>
     <property name="has-tooltip">1</property>
     <property name="enable-search">0</property>
