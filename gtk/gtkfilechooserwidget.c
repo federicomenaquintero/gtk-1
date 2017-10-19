@@ -5721,9 +5721,8 @@ gtk_file_chooser_widget_unselect_all (GtkFileChooser *chooser)
 {
   GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (chooser);
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
 
-  gtk_tree_selection_unselect_all (selection);
+  gtk_file_chooser_view_unselect_all (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view));
   pending_select_files_free (impl);
 }
 
