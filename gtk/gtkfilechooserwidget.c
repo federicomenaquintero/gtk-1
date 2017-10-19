@@ -6168,7 +6168,7 @@ struct switch_folder_closure {
   int num_selected;
 };
 
-/* Used from gtk_tree_selection_selected_foreach() in switch_to_selected_folder() */
+/* Used from gtk_file_chooser_view_selected_foreach() in switch_to_selected_folder() */
 static void
 switch_folder_foreach_cb (GtkTreeModel *model,
                           GtkTreePath  *path,
@@ -6188,7 +6188,6 @@ static void
 switch_to_selected_folder (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
   struct switch_folder_closure closure;
 
   /* We do this with foreach() rather than get_selected() as we may be in
@@ -6199,8 +6198,9 @@ switch_to_selected_folder (GtkFileChooserWidget *impl)
   closure.file = NULL;
   closure.num_selected = 0;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, switch_folder_foreach_cb, &closure);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  switch_folder_foreach_cb,
+					  &closure);
 
   g_assert (closure.file && closure.num_selected == 1);
 
