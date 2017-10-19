@@ -5663,7 +5663,9 @@ gtk_file_chooser_widget_unselect_file (GtkFileChooser *chooser,
   if (!_gtk_file_system_model_get_iter_for_file (GTK_FILE_SYSTEM_MODEL (model), &iter, file))
     return;
 
-  gtk_tree_selection_unselect_iter (gtk_tree_view_get_selection (tree_view), &iter);
+  gtk_file_chooser_view_set_iter_selection (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					    &iter,
+					    FALSE);
 }
 
 static gboolean
@@ -5674,23 +5676,19 @@ maybe_select (GtkTreeModel *model,
 {
   GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (data);
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
   gboolean is_sensitive;
   gboolean is_folder;
-
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
 
   gtk_tree_model_get (model, iter,
                       MODEL_COL_IS_FOLDER, &is_folder,
                       MODEL_COL_IS_SENSITIVE, &is_sensitive,
                       -1);
 
-  if (is_sensitive &&
-      ((is_folder && priv->action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER) ||
-       (!is_folder && priv->action == GTK_FILE_CHOOSER_ACTION_OPEN)))
-    gtk_tree_selection_select_iter (selection, iter);
-  else
-    gtk_tree_selection_unselect_iter (selection, iter);
+  gtk_file_chooser_view_set_iter_selection (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					    iter,
+					    (is_sensitive &&
+					     ((is_folder && priv->action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER) ||
+					      (!is_folder && priv->action == GTK_FILE_CHOOSER_ACTION_OPEN))));
 
   return FALSE;
 }
