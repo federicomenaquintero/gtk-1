@@ -57,6 +57,19 @@ gtk_file_chooser_view_set_model (GtkFileChooserView *view, GtkFileSystemModel *m
 }
 
 void
+gtk_file_chooser_view_select_all (GtkFileChooserView *view)
+{
+  GtkFileChooserViewIface *iface;
+
+  g_assert (GTK_IS_FILE_CHOOSER_VIEW (view));
+
+  iface = GTK_FILE_CHOOSER_VIEW_GET_IFACE (view);
+
+  g_assert (iface->select_all != NULL);
+  (* iface->select_all) (view);
+}
+
+void
 gtk_file_chooser_view_unselect_all (GtkFileChooserView *view)
 {
   GtkFileChooserViewIface *iface;

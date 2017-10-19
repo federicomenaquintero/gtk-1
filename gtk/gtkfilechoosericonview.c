@@ -65,6 +65,16 @@ set_model (GtkFileChooserView *view, GtkFileSystemModel *model)
 }
 
 static void
+select_all (GtkFileChooserView *view)
+{
+  GtkIconView *icon_view;
+
+  icon_view = GTK_ICON_VIEW (view);
+
+  gtk_icon_view_select_all (icon_view);
+}
+
+static void
 unselect_all (GtkFileChooserView *view)
 {
   GtkIconView *icon_view;
@@ -140,6 +150,7 @@ view_iface_init (GtkFileChooserViewIface *iface)
 {
   iface->set_settings       = set_settings;
   iface->set_model          = set_model;
+  iface->select_all         = select_all;
   iface->unselect_all       = unselect_all;
   iface->set_iter_selection = set_iter_selection;
   iface->selected_foreach   = selected_foreach;

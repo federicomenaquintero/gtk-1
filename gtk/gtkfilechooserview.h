@@ -38,6 +38,7 @@ typedef struct {
 
   void (* set_settings)        (GtkFileChooserView *view, GtkFileChooserSettings *settings);
   void (* set_model)           (GtkFileChooserView *view, GtkFileSystemModel *model);
+  void (* select_all)          (GtkFileChooserView *view);
   void (* unselect_all)        (GtkFileChooserView *view);
   void (* set_iter_selection)  (GtkFileChooserView *view, GtkTreeIter *iter, gboolean do_select);
 
@@ -54,6 +55,9 @@ void gtk_file_chooser_view_set_settings (GtkFileChooserView *view, GtkFileChoose
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_view_set_model (GtkFileChooserView *view, GtkFileSystemModel *model);
+
+G_GNUC_INTERNAL
+void gtk_file_chooser_view_select_all (GtkFileChooserView *view);
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_view_unselect_all (GtkFileChooserView *view);

@@ -64,6 +64,18 @@ set_model (GtkFileChooserView *view, GtkFileSystemModel *model)
 }
 
 static void
+select_all (GtkFileChooserView *view)
+{
+  GtkTreeView *tree_view;
+  GtkTreeSelection *selection;
+
+  tree_view = GTK_TREE_VIEW (view);
+
+  selection = gtk_tree_view_get_selection (tree_view);
+  gtk_tree_selection_select_all (selection);
+}
+
+static void
 unselect_all (GtkFileChooserView *view)
 {
   GtkTreeView *tree_view;
@@ -72,7 +84,6 @@ unselect_all (GtkFileChooserView *view)
   tree_view = GTK_TREE_VIEW (view);
 
   selection = gtk_tree_view_get_selection (tree_view);
-
   gtk_tree_selection_unselect_all (selection);
 }
 
@@ -116,6 +127,7 @@ view_iface_init (GtkFileChooserViewIface *iface)
 {
   iface->set_settings       = set_settings;
   iface->set_model          = set_model;
+  iface->select_all         = select_all;
   iface->unselect_all       = unselect_all;
   iface->set_iter_selection = set_iter_selection;
   iface->selected_foreach   = selected_foreach;
