@@ -5704,10 +5704,7 @@ gtk_file_chooser_widget_select_all (GtkFileChooser *chooser)
   if (priv->operation_mode == OPERATION_MODE_SEARCH ||
       priv->operation_mode == OPERATION_MODE_RECENT)
     {
-      GtkTreeSelection *selection;
-
-      selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-      gtk_tree_selection_select_all (selection);
+      gtk_file_chooser_view_select_all (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view));
       return;
     }
 
