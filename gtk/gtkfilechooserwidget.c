@@ -1121,7 +1121,7 @@ struct selection_check_closure {
   gboolean all_folders;
 };
 
-/* Used from gtk_tree_selection_selected_foreach() */
+/* Used from gtk_file_chooser_view_selected_foreach() */
 static void
 selection_check_foreach_cb (GtkTreeModel *model,
                             GtkTreePath  *path,
@@ -1158,17 +1158,15 @@ selection_check (GtkFileChooserWidget *impl,
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
   struct selection_check_closure closure;
-  GtkTreeSelection *selection;
 
   closure.impl = impl;
   closure.num_selected = 0;
   closure.all_files = TRUE;
   closure.all_folders = TRUE;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection,
-                                       selection_check_foreach_cb,
-                                       &closure);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  selection_check_foreach_cb,
+					  &closure);
 
   g_assert (closure.num_selected == 0 || !(closure.all_files && closure.all_folders));
 
