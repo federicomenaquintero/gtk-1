@@ -470,13 +470,16 @@ gtk_private_h_sources =		\
 	gtkemojichooser.h	\
 	gtkentryprivate.h	\
 	gtkeventcontrollerprivate.h	\
-	gtkfilechooserembed.h	\
-	gtkfilechooserentry.h	\
-	gtkfilechooserprivate.h	\
+	gtkfilechooserembed.h		\
+	gtkfilechooserentry.h		\
+	gtkfilechoosericonview.h	\
+	gtkfilechooserlistview.h	\
+	gtkfilechooserprivate.h		\
 	gtkfilechoosernativeprivate.h	\
 	gtkfilechooserwidgetprivate.h	\
-	gtkfilechooserutils.h	\
-	gtkfilefilterprivate.h	\
+	gtkfilechooserutils.h		\
+	gtkfilechooserview.h		\
+	gtkfilefilterprivate.h		\
 	gtkfilesystem.h		\
 	gtkfilesystemmodel.h	\
 	gtkfontchooserprivate.h	\
@@ -751,15 +754,18 @@ gtk_base_c_sources = 		\
 	gtkeventbox.c		\
 	gtkeventcontroller.c	\
 	gtkexpander.c		\
-	gtkfilechooser.c	\
-	gtkfilechooserbutton.c	\
-	gtkfilechooserdialog.c	\
-	gtkfilechooserembed.c	\
-	gtkfilechooserentry.c	\
-	gtkfilechoosernative.c	\
+	gtkfilechooser.c		\
+	gtkfilechooserbutton.c		\
+	gtkfilechooserdialog.c		\
+	gtkfilechooserembed.c		\
+	gtkfilechooserentry.c		\
+	gtkfilechoosericonview.c	\
+	gtkfilechooserlistview.c	\
+	gtkfilechoosernative.c		\
 	gtkfilechoosernativeportal.c	\
-	gtkfilechooserutils.c	\
-	gtkfilechooserwidget.c	\
+	gtkfilechooserutils.c		\
+	gtkfilechooserview.c		\
+	gtkfilechooserwidget.c		\
 	gtkfilefilter.c		\
 	gtkfilesystem.c		\
 	gtkfilesystemmodel.c	\
