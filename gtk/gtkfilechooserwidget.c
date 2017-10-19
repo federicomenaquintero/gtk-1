@@ -4427,8 +4427,8 @@ struct center_selected_row_closure {
   gboolean already_centered;
 };
 
-/* Callback used from gtk_tree_selection_selected_foreach(); centers the
- * selected row in the tree view.
+/* Callback used from gtk_file_chooser_view_selected_foreach(); centers the
+ * selected row in the view.
  */
 static void
 center_selected_row_foreach_cb (GtkTreeModel      *model,
@@ -4452,13 +4452,13 @@ browse_files_center_selected_row (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
   struct center_selected_row_closure closure;
-  GtkTreeSelection *selection;
 
   closure.impl = impl;
   closure.already_centered = FALSE;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, center_selected_row_foreach_cb, &closure);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  center_selected_row_foreach_cb,
+					  &closure);
 }
 
 static gboolean
