@@ -1467,10 +1467,10 @@ delete_file_cb (GSimpleAction *action,
 {
   GtkFileChooserWidget *impl = data;
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, delete_selected_cb, impl);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  delete_selected_cb,
+					  impl);
 }
 
 static void
@@ -1497,10 +1497,10 @@ trash_file_cb (GSimpleAction *action,
 {
   GtkFileChooserWidget *impl = data;
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, trash_selected_cb, impl);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  trash_selected_cb,
+					  impl);
 }
 
 static void
@@ -1598,13 +1598,13 @@ rename_file_cb (GSimpleAction *action,
 {
   GtkFileChooserWidget *impl = data;
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
 
   /* insensitive until we change the name */
   gtk_widget_set_sensitive (priv->rename_file_rename_button, FALSE);
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, rename_selected_cb, impl);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  rename_selected_cb,
+					  impl);
 }
 
 /* callback used to set data to clipboard */
@@ -7041,12 +7041,12 @@ get_selected_infos (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
   GSList *result;
-  GtkTreeSelection *selection;
 
   result = NULL;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, selected_foreach_get_info_cb, &result);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  selected_foreach_get_info_cb,
+					  &result);
   result = g_slist_reverse (result);
 
   return result;
