@@ -5870,13 +5870,12 @@ gtk_file_chooser_widget_get_files (GtkFileChooser *chooser)
   file_list_seen = FALSE;
   if (current_focus == priv->browse_files_tree_view)
     {
-      GtkTreeSelection *selection;
-
     file_list:
 
       file_list_seen = TRUE;
-      selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-      gtk_tree_selection_selected_foreach (selection, get_files_foreach, &info);
+      gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					      get_files_foreach,
+					      &info);
 
       /* If there is no selection in the file list, we probably have this situation:
        *
