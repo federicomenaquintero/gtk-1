@@ -5130,7 +5130,6 @@ static void
 update_chooser_entry (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
   struct update_chooser_entry_selected_foreach_closure closure;
 
   /* no need to update the file chooser's entry if there's no entry */
@@ -5147,9 +5146,10 @@ update_chooser_entry (GtkFileChooserWidget *impl)
 
   g_assert (priv->location_entry != NULL);
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
   closure.num_selected = 0;
-  gtk_tree_selection_selected_foreach (selection, update_chooser_entry_selected_foreach, &closure);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  update_chooser_entry_selected_foreach,
+					  &closure);
 
   if (closure.num_selected == 0)
     {
