@@ -1362,8 +1362,8 @@ gtk_file_chooser_widget_key_press_event (GtkWidget   *widget,
   return FALSE;
 }
 
-/* Callback used from gtk_tree_selection_selected_foreach(); adds a bookmark for
- * each selected item in the file list.
+/* Callback used from gtk_file_chooser_view_selected_foreach(); adds a bookmark for
+ * each selected item in the file view.
  */
 static void
 add_bookmark_foreach_cb (GtkTreeModel *model,
@@ -1392,13 +1392,10 @@ add_to_shortcuts_cb (GSimpleAction *action,
 {
   GtkFileChooserWidget *impl = data;
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-
-  gtk_tree_selection_selected_foreach (selection,
-                                       add_bookmark_foreach_cb,
-                                       impl);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  add_bookmark_foreach_cb,
+					  impl);
 }
 
 static gboolean
