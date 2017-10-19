@@ -7010,12 +7010,12 @@ get_selected_files (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
   GSList *result;
-  GtkTreeSelection *selection;
 
   result = NULL;
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
-  gtk_tree_selection_selected_foreach (selection, selected_foreach_get_file_cb, &result);
+  gtk_file_chooser_view_selected_foreach (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+					  selected_foreach_get_file_cb,
+					  &result);
   result = g_slist_reverse (result);
 
   return result;
