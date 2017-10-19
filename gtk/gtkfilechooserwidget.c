@@ -4466,7 +4466,6 @@ show_and_select_files (GtkFileChooserWidget *impl,
                        GSList               *files)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkTreeSelection *selection;
   GtkFileSystemModel *fsmodel;
   gboolean enabled_hidden, removed_filters;
   gboolean selected_a_file;
@@ -4475,7 +4474,6 @@ show_and_select_files (GtkFileChooserWidget *impl,
   g_assert (priv->load_state == LOAD_FINISHED);
   g_assert (priv->browse_files_model != NULL);
 
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
   fsmodel = GTK_FILE_SYSTEM_MODEL (gtk_tree_view_get_model (GTK_TREE_VIEW (priv->browse_files_tree_view)));
 
   g_assert (fsmodel == priv->browse_files_model);
@@ -4531,7 +4529,9 @@ show_and_select_files (GtkFileChooserWidget *impl,
         {
           GtkTreePath *path;
 
-          gtk_tree_selection_select_iter (selection, &iter);
+	  gtk_file_chooser_view_set_iter_selection (GTK_FILE_CHOOSER_VIEW (priv->browse_files_tree_view),
+						    &iter,
+						    TRUE);
 
           path = gtk_tree_model_get_path (GTK_TREE_MODEL (fsmodel), &iter);
           gtk_tree_view_set_cursor (GTK_TREE_VIEW (priv->browse_files_tree_view),
