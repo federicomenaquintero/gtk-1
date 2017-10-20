@@ -50,6 +50,7 @@ TEST_PROGS += 			\
 	cssprovider		\
 	defaultvalue		\
 	entry			\
+	filechooser		\
 	firefox-stylecontext	\
 	floating		\
 	focus			\
