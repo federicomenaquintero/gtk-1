@@ -4054,6 +4054,9 @@ gtk_file_chooser_widget_map (GtkWidget *widget)
       }
     }
 
+  gtk_file_chooser_state_set_needs_focus_widget (&priv->goal_state, TRUE);
+  queue_sync (impl); /* FIXME: could we actually sync right now instead of queueing? */
+
   profile_end ("end", NULL);
 }
 
@@ -6991,30 +6994,6 @@ gtk_file_chooser_widget_should_respond (GtkFileChooserEmbed *chooser_embed)
 static void
 gtk_file_chooser_widget_initial_focus (GtkFileChooserEmbed *chooser_embed)
 {
-  GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (chooser_embed);
-  GtkFileChooserWidgetPrivate *priv = impl->priv;
-  GtkWidget *widget;
-
-  if (priv->state.action == GTK_FILE_CHOOSER_ACTION_OPEN ||
-      priv->state.action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER)
-    {
-      if (priv->location_mode == LOCATION_MODE_PATH_BAR
-          || priv->state.operation_mode == OPERATION_MODE_RECENT)
-        widget = priv->browse_files_tree_view;
-      else
-        widget = priv->location_entry;
-    }
-  else if (priv->state.action == GTK_FILE_CHOOSER_ACTION_SAVE ||
-           priv->state.action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER)
-    widget = priv->location_entry;
-  else
-    {
-      g_assert_not_reached ();
-      widget = NULL;
-    }
-
-  g_assert (widget != NULL);
-  gtk_widget_grab_focus (widget);
 }
 
 static void
@@ -8789,6 +8768,46 @@ sync_select_multiple (GtkFileChooserWidget *impl)
 }
 
 static void
+sync_focus_widget (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+  GtkWidget *widget = NULL;
+
+  if (!priv->goal_state.needs_focus_widget)
+    {
+      return;
+    }
+
+  switch (priv->goal_state.action)
+    {
+    case GTK_FILE_CHOOSER_ACTION_OPEN:
+    case GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER:
+      if (priv->location_mode == LOCATION_MODE_PATH_BAR
+          || priv->state.operation_mode == OPERATION_MODE_RECENT)
+	{
+	  widget = priv->browse_files_tree_view;
+	}
+      else
+	{
+	  widget = priv->location_entry;
+	}
+      break;
+
+    case GTK_FILE_CHOOSER_ACTION_SAVE:
+    case GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER:
+      widget = priv->location_entry;
+      break;
+
+    default:
+      g_assert_not_reached ();
+    }
+
+  g_assert (widget != NULL);
+  gtk_widget_grab_focus (widget);
+  priv->goal_state.needs_focus_widget = FALSE;
+}
+
+static void
 sync_state (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
@@ -8802,4 +8821,6 @@ sync_state (GtkFileChooserWidget *impl)
 
   /* This was called from set_property() - PROP_ACTION */
   settings_load (impl);
+
+  sync_focus_widget (impl);
 }

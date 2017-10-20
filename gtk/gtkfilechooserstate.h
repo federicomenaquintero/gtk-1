@@ -35,6 +35,7 @@ typedef struct
   GtkFileChooserAction  action;
   gboolean              select_multiple;
   OperationMode         operation_mode;
+  gboolean              needs_focus_widget;
 
   GPtrArray            *selected_files; /* array of GFile */
 } GtkFileChooserState;
@@ -69,6 +70,9 @@ void gtk_file_chooser_state_copy (const GtkFileChooserState *src, GtkFileChooser
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_state_set_action (GtkFileChooserState *state, GtkFileChooserAction action);
+
+G_GNUC_INTERNAL
+void gtk_file_chooser_state_set_needs_focus_widget (GtkFileChooserState *state, gboolean needs_focus_widget);
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_state_set_selected_files (GtkFileChooserState *state, GPtrArray *files);

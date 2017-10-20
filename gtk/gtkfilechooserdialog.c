@@ -574,13 +574,10 @@ static void
 gtk_file_chooser_dialog_map (GtkWidget *widget)
 {
   GtkFileChooserDialog *dialog = GTK_FILE_CHOOSER_DIALOG (widget);
-  GtkFileChooserDialogPrivate *priv = dialog->priv;
 
   setup_search (dialog);
   setup_save_entry (dialog);
   ensure_default_response (dialog);
-
-  _gtk_file_chooser_embed_initial_focus (GTK_FILE_CHOOSER_EMBED (priv->widget));
 
   GTK_WIDGET_CLASS (gtk_file_chooser_dialog_parent_class)->map (widget);
 }

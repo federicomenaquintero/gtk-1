@@ -91,6 +91,12 @@ gtk_file_chooser_state_set_action (GtkFileChooserState *state, GtkFileChooserAct
   state->action = action;
 }
 
+void
+gtk_file_chooser_state_set_needs_focus_widget (GtkFileChooserState *state, gboolean needs_focus_widget)
+{
+  state->needs_focus_widget = needs_focus_widget;
+}
+
 /* Takes ownership of the files array */
 void
 gtk_file_chooser_state_set_selected_files (GtkFileChooserState *state, GPtrArray *files)
