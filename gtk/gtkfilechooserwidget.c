@@ -186,6 +186,7 @@ typedef enum {
 
 struct _GtkFileChooserWidgetPrivate {
   GtkFileChooserState state;
+  guint sync_state_idle_id;
 
   GtkFileSystem *file_system;
 
@@ -594,6 +595,51 @@ gtk_file_chooser_embed_default_iface_init (GtkFileChooserEmbedIface *iface)
   iface->initial_focus = gtk_file_chooser_widget_initial_focus;
 }
 
+static gboolean
+needs_sync (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  return priv->sync_state_idle_id != 0;
+}
+
+static gboolean
+sync_idle_cb (gpointer data)
+{
+  GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (data);
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  priv->sync_state_idle_id = 0;
+  return FALSE;
+}
+
+static void
+queue_sync (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  if (priv->sync_state_idle_id == 0)
+    {
+      priv->sync_state_idle_id = gdk_threads_add_idle_full (G_PRIORITY_DEFAULT,
+							    sync_idle_cb,
+							    impl,
+							    NULL);
+      g_source_set_name_by_id (priv->sync_state_idle_id, "[gtk+] sync_idle_cb");
+    }
+}
+
+static void
+unqueue_sync (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  if (priv->sync_state_idle_id != 0)
+    {
+      g_source_remove (priv->sync_state_idle_id);
+      priv->sync_state_idle_id = 0;
+    }
+}
+
 static void
 pending_select_files_free (GtkFileChooserWidget *impl)
 {
@@ -618,6 +664,8 @@ gtk_file_chooser_widget_finalize (GObject *object)
 {
   GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (object);
   GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  unqueue_sync (impl);
 
   if (priv->choices)
     g_hash_table_unref (priv->choices);
@@ -3573,6 +3621,8 @@ gtk_file_chooser_widget_dispose (GObject *object)
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
   cancel_all_operations (impl);
+
+  unqueue_sync (impl);
 
   if (priv->rename_file_popover)
     gtk_popover_set_relative_to (GTK_POPOVER (priv->rename_file_popover), NULL);
