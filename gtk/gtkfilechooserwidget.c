@@ -8586,6 +8586,8 @@ gtk_file_chooser_widget_init (GtkFileChooserWidget *impl)
 
   priv->settings = _gtk_file_chooser_get_default_settings ();
 
+  priv->sync_state_idle_id = 0;
+
   priv->local_only = TRUE;
   priv->preview_widget_active = TRUE;
   priv->use_preview_label = TRUE;

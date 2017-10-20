@@ -20,9 +20,57 @@
 #include "config.h"
 #include "gtkfilechooserstate.h"
 
+G_GNUC_WARN_UNUSED_RESULT
+static GPtrArray *
+free_files (GPtrArray *files)
+{
+  if (files == NULL)
+    {
+      return NULL;
+    }
+
+  g_ptr_array_free (files, TRUE);
+  return NULL;
+}
+
+G_GNUC_WARN_UNUSED_RESULT
+static GPtrArray *
+new_files_array (guint len)
+{
+  return g_ptr_array_new_full (len, (GDestroyNotify) g_object_unref);
+}
+
+G_GNUC_WARN_UNUSED_RESULT
+static GPtrArray *
+copy_files (GPtrArray *files)
+{
+  GPtrArray *dst;
+  guint len;
+  guint i;
+
+  if (files == NULL)
+    {
+      return NULL;
+    }
+
+  len = files->len;
+  dst = new_files_array (len);
+
+  for (i = 0; i < len; i++)
+    {
+      GFile *file;
+
+      file = g_ptr_array_index (files, i);
+      g_ptr_array_add (dst, g_object_ref (file));
+    }
+
+  return dst;
+}
+
 void
 gtk_file_chooser_state_discard (GtkFileChooserState *state)
 {
+  state->selected_files = free_files (state->selected_files);
 }
 
 void
@@ -33,4 +81,26 @@ gtk_file_chooser_state_copy (const GtkFileChooserState *src, GtkFileChooserState
   dst->action          = src->action;
   dst->select_multiple = src->select_multiple;
   dst->operation_mode  = src->operation_mode;
+  dst->selected_files  = copy_files (src->selected_files);
+}
+
+void
+gtk_file_chooser_state_set_action (GtkFileChooserState *state, GtkFileChooserAction action)
+{
+  gtk_file_chooser_state_set_selected_files (state, NULL);
+  state->action = action;
+}
+
+/* Takes ownership of the files array */
+void
+gtk_file_chooser_state_set_selected_files (GtkFileChooserState *state, GPtrArray *files)
+{
+  state->selected_files = free_files (state->selected_files);
+  state->selected_files = files;
+}
+
+GPtrArray *
+gtk_file_chooser_state_new_file_array (void)
+{
+  return new_files_array (0);
 }
