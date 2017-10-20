@@ -186,6 +186,7 @@ typedef enum {
 
 struct _GtkFileChooserWidgetPrivate {
   GtkFileChooserState state;
+  GtkFileChooserState goal_state;
   guint sync_state_idle_id;
 
   GtkFileSystem *file_system;
@@ -550,6 +551,8 @@ static void     set_model_filter             (GtkFileChooserWidget *impl,
                                               GtkFileFilter        *filter);
 static void     switch_to_home_dir           (GtkFileChooserWidget *impl);
 
+static void     sync_state                   (GtkFileChooserWidget *impl);
+
 
 
 G_DEFINE_TYPE_WITH_CODE (GtkFileChooserWidget, gtk_file_chooser_widget, GTK_TYPE_BOX,
@@ -606,6 +609,8 @@ sync_idle_cb (gpointer data)
 {
   GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (data);
   GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  sync_state (impl);
 
   priv->sync_state_idle_id = 0;
   return FALSE;
@@ -701,6 +706,7 @@ gtk_file_chooser_widget_finalize (GObject *object)
   g_free (priv->preview_display_name);
 
   gtk_file_chooser_state_discard (&priv->state);
+  gtk_file_chooser_state_discard (&priv->goal_state);
 
   impl->priv = NULL;
 
@@ -2987,8 +2993,8 @@ set_local_only (GtkFileChooserWidget *impl,
 /* Sets the file chooser to multiple selection mode */
 static void
 set_select_multiple (GtkFileChooserWidget *impl,
-                     gboolean               select_multiple,
-                     gboolean               property_notify)
+                     gboolean              select_multiple,
+                     gboolean              property_notify)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
   GtkTreeSelection *selection;
@@ -3399,23 +3405,8 @@ gtk_file_chooser_widget_set_property (GObject      *object,
       {
         GtkFileChooserAction action = g_value_get_enum (value);
 
-        if (action != priv->state.action)
-          {
-            gtk_file_chooser_widget_unselect_all (GTK_FILE_CHOOSER (impl));
-
-            if ((action == GTK_FILE_CHOOSER_ACTION_SAVE ||
-                 action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER)
-                && priv->state.select_multiple)
-              {
-                g_warning ("Tried to change the file chooser action to SAVE or CREATE_FOLDER, but "
-                           "this is not allowed in multiple selection mode.  Resetting the file chooser "
-                           "to single selection mode.");
-                set_select_multiple (impl, FALSE, TRUE);
-              }
-            priv->state.action = action;
-            update_appearance (impl);
-            settings_load (impl);
-          }
+	gtk_file_chooser_state_set_action (&priv->goal_state, action);
+	queue_sync (impl);
       }
       break;
 
@@ -3508,7 +3499,7 @@ gtk_file_chooser_widget_get_property (GObject    *object,
       break;
 
     case GTK_FILE_CHOOSER_PROP_ACTION:
-      g_value_set_enum (value, priv->state.action);
+      g_value_set_enum (value, priv->goal_state.action);
       break;
 
     case GTK_FILE_CHOOSER_PROP_FILTER:
@@ -3536,7 +3527,7 @@ gtk_file_chooser_widget_get_property (GObject    *object,
       break;
 
     case GTK_FILE_CHOOSER_PROP_SELECT_MULTIPLE:
-      g_value_set_boolean (value, priv->state.select_multiple);
+      g_value_set_boolean (value, priv->goal_state.select_multiple);
       break;
 
     case GTK_FILE_CHOOSER_PROP_SHOW_HIDDEN:
@@ -8766,3 +8757,49 @@ gtk_file_chooser_widget_get_choice (GtkFileChooser  *chooser,
   return NULL;
 }
 
+static void
+sync_selection (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  if (priv->goal_state.selected_files == NULL)
+    {
+      gtk_file_chooser_widget_unselect_all (GTK_FILE_CHOOSER (impl));
+    }
+  else
+    {
+      g_assert_not_reached (); /* FIXME: change selection */
+    }
+}
+
+static void
+sync_select_multiple (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  if ((priv->goal_state.action == GTK_FILE_CHOOSER_ACTION_SAVE ||
+       priv->goal_state.action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER)
+      && priv->goal_state.select_multiple)
+    {
+      g_warning ("Tried to change the file chooser action to SAVE or CREATE_FOLDER, but "
+		 "this is not allowed in multiple selection mode.  Resetting the file chooser "
+		 "to single selection mode.");
+      set_select_multiple (impl, FALSE, TRUE);
+    }
+}
+
+static void
+sync_state (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+
+  sync_selection (impl);
+  sync_select_multiple (impl);
+
+  gtk_file_chooser_state_copy (&priv->goal_state, &priv->state);
+
+  update_appearance (impl);
+
+  /* This was called from set_property() - PROP_ACTION */
+  settings_load (impl);
+}
