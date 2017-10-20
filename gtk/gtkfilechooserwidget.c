@@ -512,8 +512,6 @@ static void path_bar_clicked (GtkPathBar            *path_bar,
                               gboolean               child_is_hidden,
                               GtkFileChooserWidget *impl);
 
-static void update_cell_renderer_attributes (GtkFileChooserWidget *impl);
-
 static void load_remove_timer (GtkFileChooserWidget *impl, LoadState new_load_state);
 static void browse_files_center_selected_row (GtkFileChooserWidget *impl);
 
@@ -3415,7 +3413,6 @@ gtk_file_chooser_widget_set_property (GObject      *object,
                 set_select_multiple (impl, FALSE, TRUE);
               }
             priv->state.action = action;
-            update_cell_renderer_attributes (impl);
             update_appearance (impl);
             settings_load (impl);
           }
@@ -7873,8 +7870,6 @@ update_cell_renderer_attributes (GtkFileChooserWidget *impl)
                                        "text", MODEL_COL_LOCATION_TEXT,
                                        "sensitive", MODEL_COL_IS_SENSITIVE,
                                        NULL);
-
-  update_time_renderer_visible (impl);
 }
 
 static void
@@ -8520,6 +8515,7 @@ post_process_ui (GtkFileChooserWidget *impl)
    */
   file_list_set_sort_column_ids (impl);
   update_cell_renderer_attributes (impl);
+  update_time_renderer_visible (impl);
 
   /* Get the combo's text renderer and set ellipsize parameters,
    * perhaps GtkComboBoxText should declare the cell renderer
