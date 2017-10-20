@@ -474,11 +474,12 @@ gtk_private_h_sources =		\
 	gtkfilechooserentry.h		\
 	gtkfilechoosericonview.h	\
 	gtkfilechooserlistview.h	\
-	gtkfilechooserprivate.h		\
 	gtkfilechoosernativeprivate.h	\
-	gtkfilechooserwidgetprivate.h	\
+	gtkfilechooserprivate.h		\
+	gtkfilechooserstate.h		\
 	gtkfilechooserutils.h		\
 	gtkfilechooserview.h		\
+	gtkfilechooserwidgetprivate.h	\
 	gtkfilefilterprivate.h		\
 	gtkfilesystem.h		\
 	gtkfilesystemmodel.h	\
@@ -763,6 +764,7 @@ gtk_base_c_sources = 		\
 	gtkfilechooserlistview.c	\
 	gtkfilechoosernative.c		\
 	gtkfilechoosernativeportal.c	\
+	gtkfilechooserstate.c		\
 	gtkfilechooserutils.c		\
 	gtkfilechooserview.c		\
 	gtkfilechooserwidget.c		\
