@@ -33,6 +33,7 @@ typedef enum {
 typedef struct
 {
   GtkFileChooserAction  action;
+  gboolean              select_multiple;
   OperationMode         operation_mode;
 } GtkFileChooserState;
 

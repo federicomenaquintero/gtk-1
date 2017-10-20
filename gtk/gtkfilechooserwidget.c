@@ -317,7 +317,6 @@ struct _GtkFileChooserWidgetPrivate {
   guint local_only : 1;
   guint preview_widget_active : 1;
   guint use_preview_label : 1;
-  guint select_multiple : 1;
   guint show_hidden_set : 1;
   guint do_overwrite_confirmation : 1;
   guint list_sort_ascending : 1;
@@ -1936,7 +1935,7 @@ file_list_drag_data_received_get_info_cb (GCancellable *cancellable,
         browse_files_center_selected_row (data->impl);
     }
 
-  if (priv->select_multiple)
+  if (priv->state.select_multiple)
     file_list_drag_data_select_uris (data->impl, data->uris);
 
 out:
@@ -2949,7 +2948,7 @@ set_select_multiple (GtkFileChooserWidget *impl,
   GtkTreeSelection *selection;
   GtkSelectionMode mode;
 
-  if (select_multiple == priv->select_multiple)
+  if (select_multiple == priv->state.select_multiple)
     return;
 
   mode = select_multiple ? GTK_SELECTION_MULTIPLE : GTK_SELECTION_SINGLE;
@@ -2959,7 +2958,7 @@ set_select_multiple (GtkFileChooserWidget *impl,
 
   gtk_tree_view_set_rubber_banding (GTK_TREE_VIEW (priv->browse_files_tree_view), select_multiple);
 
-  priv->select_multiple = select_multiple;
+  priv->state.select_multiple = select_multiple;
   g_object_notify (G_OBJECT (impl), "select-multiple");
 
   check_preview_change (impl);
@@ -3222,7 +3221,7 @@ update_appearance (GtkFileChooserWidget *impl)
       gtk_places_sidebar_set_show_recent (GTK_PLACES_SIDEBAR (priv->places_sidebar), FALSE);
       gtk_places_sidebar_set_show_trash (GTK_PLACES_SIDEBAR (priv->places_sidebar), FALSE);
 
-      if (priv->select_multiple)
+      if (priv->state.select_multiple)
         {
           g_warning ("Save mode cannot be set in conjunction with multiple selection mode.  "
                      "Re-setting to single selection mode.");
@@ -3360,7 +3359,7 @@ gtk_file_chooser_widget_set_property (GObject      *object,
 
             if ((action == GTK_FILE_CHOOSER_ACTION_SAVE ||
                  action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER)
-                && priv->select_multiple)
+                && priv->state.select_multiple)
               {
                 g_warning ("Tried to change the file chooser action to SAVE or CREATE_FOLDER, but "
                            "this is not allowed in multiple selection mode.  Resetting the file chooser "
@@ -3492,7 +3491,7 @@ gtk_file_chooser_widget_get_property (GObject    *object,
       break;
 
     case GTK_FILE_CHOOSER_PROP_SELECT_MULTIPLE:
-      g_value_set_boolean (value, priv->select_multiple);
+      g_value_set_boolean (value, priv->state.select_multiple);
       break;
 
     case GTK_FILE_CHOOSER_PROP_SHOW_HIDDEN:
@@ -5693,7 +5692,7 @@ gtk_file_chooser_widget_select_all (GtkFileChooser *chooser)
       return;
     }
 
-  if (priv->select_multiple)
+  if (priv->state.select_multiple)
     gtk_tree_model_foreach (GTK_TREE_MODEL (priv->browse_files_model),
                             maybe_select, impl);
 }
@@ -6212,7 +6211,7 @@ get_selected_file_info_from_file_list (GtkFileChooserWidget *impl,
   GFileInfo *info;
   GtkTreeModel *model;
 
-  g_assert (!priv->select_multiple);
+  g_assert (!priv->state.select_multiple);
   selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->browse_files_tree_view));
   if (!gtk_tree_selection_get_selected (selection, &model, &iter))
     {
@@ -8540,7 +8539,7 @@ gtk_file_chooser_widget_init (GtkFileChooserWidget *impl)
   priv->local_only = TRUE;
   priv->preview_widget_active = TRUE;
   priv->use_preview_label = TRUE;
-  priv->select_multiple = FALSE;
+  priv->state.select_multiple = FALSE;
   priv->icon_size = FALLBACK_ICON_SIZE;
   priv->load_state = LOAD_EMPTY;
   priv->reload_state = RELOAD_EMPTY;

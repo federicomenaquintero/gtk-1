@@ -30,6 +30,7 @@ gtk_file_chooser_state_copy (const GtkFileChooserState *src, GtkFileChooserState
 {
   gtk_file_chooser_state_discard (dst);
 
-  dst->action         = src->action;
-  dst->operation_mode = src->operation_mode;
+  dst->action          = src->action;
+  dst->select_multiple = src->select_multiple;
+  dst->operation_mode  = src->operation_mode;
 }
