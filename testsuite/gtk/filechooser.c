@@ -39,6 +39,12 @@ test_widget_is_focused_at_startup (GtkFileChooserAction action, const char *inst
 }
 
 static void
+test_open_file_list_is_focused_at_startup (void)
+{
+  test_widget_is_focused_at_startup (GTK_FILE_CHOOSER_ACTION_OPEN, "GtkFileChooserListView");
+}
+
+static void
 test_save_location_entry_is_focused_at_startup (void)
 {
   test_widget_is_focused_at_startup (GTK_FILE_CHOOSER_ACTION_SAVE, "GtkFileChooserEntry");
@@ -49,6 +55,8 @@ main (int argc, char **argv)
 {
   gtk_test_init (&argc, &argv);
 
+  g_test_add_func ("/filechooser/open/file_list_is_focused_at_startup",
+		   test_open_file_list_is_focused_at_startup);
   g_test_add_func ("/filechooser/save/location_entry_is_focused_at_startup",
 		   test_save_location_entry_is_focused_at_startup);
 
