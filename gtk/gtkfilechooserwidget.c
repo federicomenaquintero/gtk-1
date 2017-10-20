@@ -448,7 +448,6 @@ static void           gtk_file_chooser_widget_get_default_size       (GtkFileCho
                                                                        gint                *default_width,
                                                                        gint                *default_height);
 static gboolean       gtk_file_chooser_widget_should_respond         (GtkFileChooserEmbed *chooser_embed);
-static void           gtk_file_chooser_widget_initial_focus          (GtkFileChooserEmbed *chooser_embed);
 
 static void        gtk_file_chooser_widget_add_choice    (GtkFileChooser  *chooser,
                                                           const char      *id,
@@ -593,7 +592,6 @@ gtk_file_chooser_embed_default_iface_init (GtkFileChooserEmbedIface *iface)
 {
   iface->get_default_size = gtk_file_chooser_widget_get_default_size;
   iface->should_respond = gtk_file_chooser_widget_should_respond;
-  iface->initial_focus = gtk_file_chooser_widget_initial_focus;
 }
 
 static gboolean
@@ -6988,12 +6986,6 @@ gtk_file_chooser_widget_should_respond (GtkFileChooserEmbed *chooser_embed)
     add_selection_to_recent_list (impl);
 
   return retval;
-}
-
-/* Implementation for GtkFileChooserEmbed::initial_focus() */
-static void
-gtk_file_chooser_widget_initial_focus (GtkFileChooserEmbed *chooser_embed)
-{
 }
 
 static void
