@@ -222,7 +222,6 @@ static guint signals[LAST_SIGNAL] = { 0 };
 static void gtk_file_chooser_widget_iface_init       (GtkFileChooserIface        *iface);
 static void gtk_file_chooser_embed_default_iface_init (GtkFileChooserEmbedIface   *iface);
 
-static void     gtk_file_chooser_widget_constructed  (GObject               *object);
 static void     gtk_file_chooser_widget_finalize     (GObject               *object);
 static void     gtk_file_chooser_widget_set_property (GObject               *object,
                                                        guint                  prop_id,
@@ -2721,23 +2720,6 @@ location_toggle_popup_handler (GtkFileChooserWidget *impl)
           gtk_widget_grab_focus (priv->location_entry);
         }
     }
-}
-
-static void
-gtk_file_chooser_widget_constructed (GObject *object)
-{
-  GtkFileChooserWidget *impl = GTK_FILE_CHOOSER_WIDGET (object);
-  GtkFileChooserWidgetPrivate *priv = impl->priv;
-
-  profile_start ("start", NULL);
-
-  G_OBJECT_CLASS (gtk_file_chooser_widget_parent_class)->constructed (object);
-
-  g_assert (priv->file_system);
-
-  update_appearance (impl);
-
-  profile_end ("end", NULL);
 }
 
 static void
@@ -7839,7 +7821,6 @@ gtk_file_chooser_widget_class_init (GtkFileChooserWidgetClass *class)
   gint i;
 
   gobject_class->finalize = gtk_file_chooser_widget_finalize;
-  gobject_class->constructed = gtk_file_chooser_widget_constructed;
   gobject_class->set_property = gtk_file_chooser_widget_set_property;
   gobject_class->get_property = gtk_file_chooser_widget_get_property;
   gobject_class->dispose = gtk_file_chooser_widget_dispose;
