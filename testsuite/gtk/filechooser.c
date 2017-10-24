@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-file-style: "gnu" -*- */
 
 #include <gtk/gtk.h>
+#include "gtkfilechooserwidgetprivate.h"
 
 static GtkWidget *
 create_file_chooser_dialog (GtkFileChooserAction action)
@@ -48,6 +49,41 @@ static void
 test_save_location_entry_is_focused_at_startup (void)
 {
   test_widget_is_focused_at_startup (GTK_FILE_CHOOSER_ACTION_SAVE, "GtkFileChooserEntry");
+}
+
+/* Copied from _gtk_file_chooser_delegate_get_quark() */
+static GQuark
+get_file_chooser_delegate_quark (void)
+{
+  static GQuark quark = 0;
+
+  if (G_UNLIKELY (quark == 0))
+    quark = g_quark_from_static_string ("gtk-file-chooser-delegate");
+
+  return quark;
+}
+
+static GtkWidget *
+get_file_chooser_widget (GtkFileChooserDialog *dialog)
+{
+  gpointer obj;
+
+  obj = g_object_get_qdata (G_OBJECT (dialog), get_file_chooser_delegate_quark ());
+  g_assert (GTK_IS_FILE_CHOOSER_WIDGET (obj));
+
+  return GTK_WIDGET (obj);
+}
+
+static GtkFileChooserWidgetPrivate *
+get_file_chooser_widget_private (GtkFileChooserDialog *dialog)
+{
+  GtkWidget *widget;
+  GtkFileChooserWidgetPrivate *priv;
+
+  widget = get_file_chooser_widget (dialog);
+  priv = G_TYPE_INSTANCE_GET_PRIVATE (widget, GTK_TYPE_FILE_CHOOSER_WIDGET, GtkFileChooserWidgetPrivate);
+
+  return priv;
 }
 
 int
