@@ -87,12 +87,36 @@ get_file_chooser_widget_private (GtkFileChooserDialog *dialog)
 }
 
 static void
+spin_main_loop ()
+{
+  int i;
+
+  /* For some reason, the file chooser's sync idle callback doesn't get run if
+   * we only run one iteration.  Running it twice works.
+   */
+  for (i = 2; i; i--)
+    {
+      gtk_main_iteration ();
+    }
+}
+
+static void
 check_create_folder_button_is_visible (GtkFileChooserDialog *dialog, gboolean should_be_visible)
 {
   GtkFileChooserWidgetPrivate *priv;
 
   priv = get_file_chooser_widget_private (dialog);
   g_assert (priv->browse_new_folder_button != NULL);
+  g_assert (gtk_widget_is_visible (priv->browse_new_folder_button) == should_be_visible);
+
+  gtk_file_chooser_set_create_folders (GTK_FILE_CHOOSER (dialog), FALSE);
+  spin_main_loop ();
+
+  g_assert (gtk_widget_is_visible (priv->browse_new_folder_button) == FALSE);
+
+  gtk_file_chooser_set_create_folders (GTK_FILE_CHOOSER (dialog), TRUE);
+  spin_main_loop ();
+
   g_assert (gtk_widget_is_visible (priv->browse_new_folder_button) == should_be_visible);
 }
 
