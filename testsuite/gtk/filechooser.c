@@ -86,6 +86,38 @@ get_file_chooser_widget_private (GtkFileChooserDialog *dialog)
   return priv;
 }
 
+static void
+check_create_folder_button_is_visible (GtkFileChooserDialog *dialog, gboolean should_be_visible)
+{
+  GtkFileChooserWidgetPrivate *priv;
+
+  priv = get_file_chooser_widget_private (dialog);
+  g_assert (priv->browse_new_folder_button != NULL);
+  g_assert (gtk_widget_is_visible (priv->browse_new_folder_button) == should_be_visible);
+}
+
+static void
+test_create_folder_button_is_invisible_in_open (void)
+{
+  GtkWidget *dialog;
+
+  dialog = create_file_chooser_dialog (GTK_FILE_CHOOSER_ACTION_OPEN);
+  gtk_widget_show_now (dialog);
+
+  check_create_folder_button_is_visible (GTK_FILE_CHOOSER_DIALOG (dialog), FALSE);
+}
+
+static void
+test_create_folder_button_is_visible_in_save (void)
+{
+  GtkWidget *dialog;
+
+  dialog = create_file_chooser_dialog (GTK_FILE_CHOOSER_ACTION_SAVE);
+  gtk_widget_show_now (dialog);
+
+  check_create_folder_button_is_visible (GTK_FILE_CHOOSER_DIALOG (dialog), TRUE);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -95,6 +127,11 @@ main (int argc, char **argv)
 		   test_open_file_list_is_focused_at_startup);
   g_test_add_func ("/filechooser/save/location_entry_is_focused_at_startup",
 		   test_save_location_entry_is_focused_at_startup);
+
+  g_test_add_func ("/filechooser/create_folder_button/is_invisible_in_open",
+		   test_create_folder_button_is_invisible_in_open);
+  g_test_add_func ("/filechooser/create_folder_button/is_visible_in_save",
+		   test_create_folder_button_is_visible_in_save);
 
   return g_test_run ();
 }
