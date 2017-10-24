@@ -460,7 +460,7 @@ queue_sync (GtkFileChooserWidget *impl)
 							    sync_idle_cb,
 							    impl,
 							    NULL);
-      g_source_set_name_by_id (priv->sync_state_idle_id, "[gtk+] sync_idle_cb");
+      g_source_set_name_by_id (priv->sync_state_idle_id, "[gtk+] GtkFileChooserWidget sync_idle_cb");
     }
 }
 
