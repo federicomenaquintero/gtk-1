@@ -3285,7 +3285,7 @@ gtk_file_chooser_widget_set_property (GObject      *object,
       {
         gboolean create_folders = g_value_get_boolean (value);
         priv->create_folders = create_folders;
-        update_appearance (impl);
+	queue_sync (impl);
       }
       break;
 
