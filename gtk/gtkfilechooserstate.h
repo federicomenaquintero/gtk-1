@@ -37,6 +37,8 @@ typedef struct
   OperationMode         operation_mode;
   gboolean              needs_focus_widget;
 
+  gboolean              create_folders;
+
   GPtrArray            *selected_files; /* array of GFile */
 } GtkFileChooserState;
 
@@ -73,6 +75,9 @@ void gtk_file_chooser_state_set_action (GtkFileChooserState *state, GtkFileChoos
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_state_set_needs_focus_widget (GtkFileChooserState *state, gboolean needs_focus_widget);
+
+G_GNUC_INTERNAL
+void gtk_file_chooser_state_set_create_folders (GtkFileChooserState *state, gboolean create_folders);
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_state_set_selected_files (GtkFileChooserState *state, GPtrArray *files);

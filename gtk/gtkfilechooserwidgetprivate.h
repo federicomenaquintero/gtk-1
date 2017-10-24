@@ -187,7 +187,6 @@ struct _GtkFileChooserWidgetPrivate {
   guint do_overwrite_confirmation : 1;
   guint list_sort_ascending : 1;
   guint shortcuts_current_folder_active : 1;
-  guint create_folders : 1;
   guint auto_selecting_first_row : 1;
 };
 

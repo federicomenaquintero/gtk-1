@@ -2878,8 +2878,6 @@ static void
 location_bar_update (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
-  gboolean visible = TRUE;
-  gboolean create_folder_visible = FALSE;
 
   switch (priv->state.operation_mode)
     {
@@ -2907,7 +2905,6 @@ location_bar_update (GtkFileChooserWidget *impl)
           if (have_selected)
             put_recent_folder_in_pathbar (impl, &iter);
         }
-      visible = FALSE;
       break;
 
     case OPERATION_MODE_SEARCH:
@@ -2917,16 +2914,6 @@ location_bar_update (GtkFileChooserWidget *impl)
       g_assert_not_reached ();
       return;
     }
-
-  if (visible)
-    {
-      if (priv->create_folders
-          && priv->state.action != GTK_FILE_CHOOSER_ACTION_OPEN
-          && priv->state.operation_mode != OPERATION_MODE_RECENT)
-        create_folder_visible = TRUE;
-    }
-
-  gtk_widget_set_visible (priv->browse_new_folder_button, create_folder_visible);
 }
 
 static void
@@ -3284,7 +3271,7 @@ gtk_file_chooser_widget_set_property (GObject      *object,
     case GTK_FILE_CHOOSER_PROP_CREATE_FOLDERS:
       {
         gboolean create_folders = g_value_get_boolean (value);
-        priv->create_folders = create_folders;
+	gtk_file_chooser_state_set_create_folders (&priv->goal_state, create_folders);
 	queue_sync (impl);
       }
       break;
@@ -3355,7 +3342,7 @@ gtk_file_chooser_widget_get_property (GObject    *object,
       break;
 
     case GTK_FILE_CHOOSER_PROP_CREATE_FOLDERS:
-      g_value_set_boolean (value, priv->create_folders);
+      g_value_set_boolean (value, priv->goal_state.create_folders);
       break;
 
     default:
@@ -8374,8 +8361,9 @@ gtk_file_chooser_widget_init (GtkFileChooserWidget *impl)
   priv->location_mode = LOCATION_MODE_PATH_BAR;
   priv->state.operation_mode = OPERATION_MODE_BROWSE;
   priv->recent_manager = gtk_recent_manager_get_default ();
-  priv->create_folders = TRUE;
   priv->auto_selecting_first_row = FALSE;
+
+  gtk_file_chooser_state_set_create_folders (&priv->goal_state, TRUE);
 
   /* Ensure GTK+ private types used by the template
    * definition before calling gtk_widget_init_template()
@@ -8577,6 +8565,25 @@ sync_select_multiple (GtkFileChooserWidget *impl)
 }
 
 static void
+sync_create_folder_button (GtkFileChooserWidget *impl)
+{
+  GtkFileChooserWidgetPrivate *priv = impl->priv;
+  gboolean visible;
+
+  visible = (priv->goal_state.create_folders
+	     && priv->goal_state.action != GTK_FILE_CHOOSER_ACTION_OPEN
+	     && priv->goal_state.operation_mode != OPERATION_MODE_RECENT);
+
+  gtk_widget_set_visible (priv->browse_new_folder_button, visible);
+}
+
+static void
+sync_widgets (GtkFileChooserWidget *impl)
+{
+  sync_create_folder_button (impl);
+}
+
+static void
 sync_focus_widget (GtkFileChooserWidget *impl)
 {
   GtkFileChooserWidgetPrivate *priv = impl->priv;
@@ -8623,6 +8630,7 @@ sync_state (GtkFileChooserWidget *impl)
 
   sync_selection (impl);
   sync_select_multiple (impl);
+  sync_widgets (impl);
 
   gtk_file_chooser_state_copy (&priv->goal_state, &priv->state);
 

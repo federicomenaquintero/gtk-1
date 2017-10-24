@@ -81,6 +81,7 @@ gtk_file_chooser_state_copy (const GtkFileChooserState *src, GtkFileChooserState
   dst->action          = src->action;
   dst->select_multiple = src->select_multiple;
   dst->operation_mode  = src->operation_mode;
+  dst->create_folders  = src->create_folders;
   dst->selected_files  = copy_files (src->selected_files);
 }
 
@@ -95,6 +96,12 @@ void
 gtk_file_chooser_state_set_needs_focus_widget (GtkFileChooserState *state, gboolean needs_focus_widget)
 {
   state->needs_focus_widget = needs_focus_widget;
+}
+
+void
+gtk_file_chooser_state_set_create_folders (GtkFileChooserState *state, gboolean create_folders)
+{
+  state->create_folders = create_folders;
 }
 
 /* Takes ownership of the files array */
