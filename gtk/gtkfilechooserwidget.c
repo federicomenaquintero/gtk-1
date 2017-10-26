@@ -165,8 +165,6 @@ enum {
 
 #define MAX_LOADING_TIME 500
 
-#define DEFAULT_NEW_FOLDER_NAME _("Type name of new folder")
-
 /* Signal IDs */
 enum {
   LOCATION_POPUP,
@@ -4676,118 +4674,106 @@ file_system_model_set (GtkFileSystemModel *model,
   GtkFileChooserWidget *impl = data;
   GtkFileChooserWidgetPrivate *priv = impl->priv;
 
+  g_assert (info != NULL);
+
   switch (column)
     {
     case MODEL_COL_FILE:
       g_value_set_object (value, file);
       break;
     case MODEL_COL_NAME:
-      if (info == NULL)
-        g_value_set_string (value, DEFAULT_NEW_FOLDER_NAME);
-      else
-        g_value_set_string (value, g_file_info_get_display_name (info));
+      g_value_set_string (value, g_file_info_get_display_name (info));
       break;
     case MODEL_COL_NAME_COLLATED:
-      if (info == NULL)
-        g_value_take_string (value, g_utf8_collate_key_for_filename (DEFAULT_NEW_FOLDER_NAME, -1));
-      else
-        g_value_take_string (value, g_utf8_collate_key_for_filename (g_file_info_get_display_name (info), -1));
+      g_value_take_string (value, g_utf8_collate_key_for_filename (g_file_info_get_display_name (info), -1));
       break;
     case MODEL_COL_IS_FOLDER:
       g_value_set_boolean (value, info == NULL || _gtk_file_info_consider_as_directory (info));
       break;
     case MODEL_COL_IS_SENSITIVE:
-      if (info)
-        {
-          gboolean sensitive = TRUE;
+      {
+	gboolean sensitive = TRUE;
 
-          if (!(priv->state.action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
-                || priv->state.action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER))
-            {
-              sensitive = TRUE; /* for file modes... */
-            }
-          else if (!_gtk_file_info_consider_as_directory (info))
-            {
-              sensitive = FALSE; /* for folder modes, files are not sensitive... */
-            }
-          else
-            {
-              /* ... and for folder modes, folders are sensitive only if the filter says so */
-              GtkTreeIter iter;
-              if (!_gtk_file_system_model_get_iter_for_file (model, &iter, file))
-                g_assert_not_reached ();
-              sensitive = !_gtk_file_system_model_iter_is_filtered_out (model, &iter);
-            }
+	if (!(priv->state.action == GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
+	      || priv->state.action == GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER))
+	  {
+	    sensitive = TRUE; /* for file modes... */
+	  }
+	else if (!_gtk_file_info_consider_as_directory (info))
+	  {
+	    sensitive = FALSE; /* for folder modes, files are not sensitive... */
+	  }
+	else
+	  {
+	    /* ... and for folder modes, folders are sensitive only if the filter says so */
+	    GtkTreeIter iter;
+	    if (!_gtk_file_system_model_get_iter_for_file (model, &iter, file))
+	      g_assert_not_reached ();
+	    sensitive = !_gtk_file_system_model_iter_is_filtered_out (model, &iter);
+	  }
 
-          g_value_set_boolean (value, sensitive);
-        }
-      else
-        g_value_set_boolean (value, TRUE);
+	g_value_set_boolean (value, sensitive);
+      }
       break;
     case MODEL_COL_SURFACE:
-      if (info)
-        {
-          if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_STANDARD_ICON))
-            {
-              g_value_take_boxed (value, _gtk_file_info_render_icon (info, GTK_WIDGET (impl), priv->icon_size));
-            }
-          else
-            {
-              GtkTreeModel *tree_model;
-              GtkTreePath *start, *end;
-              GtkTreeIter iter;
-              gboolean visible;
-
-              if (priv->browse_files_tree_view == NULL ||
-                  g_file_info_has_attribute (info, "filechooser::queried"))
-                return FALSE;
-
-              tree_model = gtk_tree_view_get_model (GTK_TREE_VIEW (priv->browse_files_tree_view));
-              if (tree_model != GTK_TREE_MODEL (model))
-                return FALSE;
-
-              if (!_gtk_file_system_model_get_iter_for_file (model, &iter, file))
-                g_assert_not_reached ();
-
-              if (gtk_tree_view_get_visible_range (GTK_TREE_VIEW (priv->browse_files_tree_view), &start, &end))
-                {
-                  GtkTreePath *path;
-
-                  gtk_tree_path_prev (start);
-                  gtk_tree_path_next (end);
-                  path = gtk_tree_model_get_path (tree_model, &iter);
-                  visible = gtk_tree_path_compare (start, path) != 1 &&
-                            gtk_tree_path_compare (path, end) != 1;
-                  gtk_tree_path_free (path);
-                  gtk_tree_path_free (start);
-                  gtk_tree_path_free (end);
-                }
-              else
-                visible = TRUE;
-              if (visible)
-                {
-                  g_file_info_set_attribute_boolean (info, "filechooser::queried", TRUE);
-                  g_file_query_info_async (file,
-                                           G_FILE_ATTRIBUTE_THUMBNAIL_PATH ","
-                                           G_FILE_ATTRIBUTE_THUMBNAILING_FAILED ","
-                                           G_FILE_ATTRIBUTE_STANDARD_ICON,
-                                           G_FILE_QUERY_INFO_NONE,
-                                           G_PRIORITY_DEFAULT,
-                                           _gtk_file_system_model_get_cancellable (model),
-                                           file_system_model_got_thumbnail,
-                                           model);
-                }
-              return FALSE;
-            }
-        }
+      if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_STANDARD_ICON))
+	{
+	  g_value_take_boxed (value, _gtk_file_info_render_icon (info, GTK_WIDGET (impl), priv->icon_size));
+	}
       else
-        g_value_set_boxed (value, NULL);
+	{
+	  GtkTreeModel *tree_model;
+	  GtkTreePath *start, *end;
+	  GtkTreeIter iter;
+	  gboolean visible;
+
+	  if (priv->browse_files_tree_view == NULL ||
+	      g_file_info_has_attribute (info, "filechooser::queried"))
+	    return FALSE;
+
+	  tree_model = gtk_tree_view_get_model (GTK_TREE_VIEW (priv->browse_files_tree_view));
+	  if (tree_model != GTK_TREE_MODEL (model))
+	    return FALSE;
+
+	  if (!_gtk_file_system_model_get_iter_for_file (model, &iter, file))
+	    g_assert_not_reached ();
+
+	  if (gtk_tree_view_get_visible_range (GTK_TREE_VIEW (priv->browse_files_tree_view), &start, &end))
+	    {
+	      GtkTreePath *path;
+
+	      gtk_tree_path_prev (start);
+	      gtk_tree_path_next (end);
+	      path = gtk_tree_model_get_path (tree_model, &iter);
+	      visible = gtk_tree_path_compare (start, path) != 1 &&
+		gtk_tree_path_compare (path, end) != 1;
+	      gtk_tree_path_free (path);
+	      gtk_tree_path_free (start);
+	      gtk_tree_path_free (end);
+	    }
+	  else
+	    visible = TRUE;
+	  if (visible)
+	    {
+	      g_file_info_set_attribute_boolean (info, "filechooser::queried", TRUE);
+	      g_file_query_info_async (file,
+				       G_FILE_ATTRIBUTE_THUMBNAIL_PATH ","
+				       G_FILE_ATTRIBUTE_THUMBNAILING_FAILED ","
+				       G_FILE_ATTRIBUTE_STANDARD_ICON,
+				       G_FILE_QUERY_INFO_NONE,
+				       G_PRIORITY_DEFAULT,
+				       _gtk_file_system_model_get_cancellable (model),
+				       file_system_model_got_thumbnail,
+				       model);
+	    }
+	  return FALSE;
+	}
       break;
     case MODEL_COL_SIZE:
-      g_value_set_int64 (value, info ? g_file_info_get_size (info) : 0);
+      g_value_set_int64 (value, g_file_info_get_size (info));
       break;
     case MODEL_COL_SIZE_TEXT:
-      if (info == NULL || _gtk_file_info_consider_as_directory (info))
+      if (_gtk_file_info_consider_as_directory (info))
         g_value_set_string (value, NULL);
       else
         g_value_take_string (value, g_format_size (g_file_info_get_size (info)));
@@ -4797,8 +4783,6 @@ file_system_model_set (GtkFileSystemModel *model,
     case MODEL_COL_TIME_TEXT:
       {
         glong time;
-        if (info == NULL)
-          break;
         if (priv->state.operation_mode == OPERATION_MODE_RECENT)
           time = (glong) g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
         else
@@ -4814,7 +4798,7 @@ file_system_model_set (GtkFileSystemModel *model,
         break;
       }
     case MODEL_COL_ELLIPSIZE:
-      g_value_set_enum (value, info ? PANGO_ELLIPSIZE_END : PANGO_ELLIPSIZE_NONE);
+      g_value_set_enum (value, PANGO_ELLIPSIZE_END);
       break;
     case MODEL_COL_LOCATION_TEXT:
       {
