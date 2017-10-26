@@ -34,7 +34,6 @@ G_BEGIN_DECLS
 typedef struct _GtkFileChooserIconView GtkFileChooserIconView;
 typedef struct _GtkFileChooserIconViewClass GtkFileChooserIconViewClass;
 
-G_GNUC_INTERNAL
 GType gtk_file_chooser_icon_view_get_type (void) G_GNUC_CONST;
 
 G_END_DECLS

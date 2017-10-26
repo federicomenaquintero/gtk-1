@@ -32,7 +32,6 @@
 typedef struct _GtkFileChooserListView GtkFileChooserListView;
 typedef struct _GtkFileChooserListViewClass GtkFileChooserListViewClass;
 
-G_GNUC_INTERNAL
 GType gtk_file_chooser_list_view_get_type (void) G_GNUC_CONST; 
 
 #endif /* __GTK_FILE_CHOOSER_LIST_VIEW_H__ */

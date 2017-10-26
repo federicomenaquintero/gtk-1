@@ -8,6 +8,12 @@ in the following way, example:
     cd /path/to/gtk+/
     GLADE_CATALOG_SEARCH_PATH=`pwd`/gtk/glade glade gtk/ui/gtkfilechooserwidget.ui
 
+To add new widgets internal to GTK+ to the catalog:
+
+  1. Modify gtk-private-widgets.xml
+
+  2. Modify ../gtk/gtkgladecatalog.c
+
 Documentation for updating this catalog can be found here:
     https://developer.gnome.org/gladeui/stable/
 

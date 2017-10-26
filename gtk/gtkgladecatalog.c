@@ -24,6 +24,8 @@
 
 #include "gtkpathbar.h"
 #include "gtkplacesviewprivate.h"
+#include "gtkfilechooserlistview.h"
+#include "gtkfilechoosericonview.h"
 #include "gtkcolorswatchprivate.h"
 #include "gtkcolorplaneprivate.h"
 #include "gtkcolorscaleprivate.h"
@@ -45,6 +47,8 @@ gtk_glade_catalog_init (const gchar *catalog_name)
 {
   g_type_ensure (GTK_TYPE_PATH_BAR);
   g_type_ensure (GTK_TYPE_PLACES_VIEW);
+  g_type_ensure (GTK_TYPE_FILE_CHOOSER_LIST_VIEW);
+  g_type_ensure (GTK_TYPE_FILE_CHOOSER_ICON_VIEW);
   g_type_ensure (GTK_TYPE_COLOR_SWATCH);
   g_type_ensure (GTK_TYPE_COLOR_PLANE);
   g_type_ensure (GTK_TYPE_COLOR_SCALE);
