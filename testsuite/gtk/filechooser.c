@@ -147,6 +147,69 @@ test_create_folder_button_is_visible_in_save (void)
 
   gtk_widget_destroy (dialog);
 }
+
+/* FIXME: _gtk_file_chooser_read_settings() from gtkfilechooserutils.c is not available here, so we have to duplicate it here */
+static GtkFileChooserSettings
+gtk_file_chooser_read_settings (GSettings *settings)
+{
+  GtkFileChooserSettings s;
+
+  s.sort_column      = g_settings_get_enum    (settings, SETTINGS_KEY_SORT_COLUMN);
+  s.sort_order       = g_settings_get_enum    (settings, SETTINGS_KEY_SORT_ORDER);
+  s.startup_mode     = g_settings_get_enum    (settings, SETTINGS_KEY_STARTUP_MODE);
+  s.sidebar_width    = g_settings_get_int     (settings, SETTINGS_KEY_SIDEBAR_WIDTH);
+  s.date_format      = g_settings_get_enum    (settings, SETTINGS_KEY_DATE_FORMAT);
+  s.clock_format     = g_settings_get_enum    (settings, SETTINGS_KEY_CLOCK_FORMAT);
+
+  s.show_hidden            = g_settings_get_boolean (settings, SETTINGS_KEY_SHOW_HIDDEN);
+  s.show_size_column       = g_settings_get_boolean (settings, SETTINGS_KEY_SHOW_SIZE_COLUMN);
+  s.sort_directories_first = g_settings_get_boolean (settings, SETTINGS_KEY_SORT_DIRECTORIES_FIRST);
+
+  return s;
+}
+
+static GtkFileChooserSettings
+get_settings (void)
+{
+  GSettings *gsettings;
+  GtkFileChooserSettings s;
+
+  gsettings = g_settings_new ("org.gtk.Settings.FileChooser");
+  s = gtk_file_chooser_read_settings (gsettings);
+  g_object_unref (gsettings);
+
+  return s;
+}
+
+static void
+test_settings_sort_matches_settings (void)
+{
+  GtkWidget *dialog;
+  GtkFileChooserSettings settings = get_settings ();
+  GtkFileChooserWidgetPrivate *priv;
+  GtkTreeModel *model;
+  gint column_id;
+  GtkSortType order;
+
+  dialog = create_file_chooser_dialog (GTK_FILE_CHOOSER_ACTION_OPEN);
+  priv = get_file_chooser_widget_private (GTK_FILE_CHOOSER_DIALOG (dialog));
+  gtk_widget_show_now (dialog);
+
+  /* model is not loaded yet - wait until it is done */
+
+  do
+    {
+      gtk_main_iteration ();
+      model = gtk_tree_view_get_model (GTK_TREE_VIEW (priv->browse_files_tree_view));
+    } while (model == NULL);
+
+  g_assert_cmpstr (g_type_name_from_instance ((GTypeInstance *) model), ==, "GtkFileSystemModel");
+
+  g_assert (gtk_tree_sortable_get_sort_column_id (GTK_TREE_SORTABLE (model), &column_id, &order));
+  g_assert (column_id == settings.sort_column);
+  g_assert (order == settings.sort_order);
+
+  gtk_widget_destroy (dialog);
 }
 
 int
@@ -163,6 +226,9 @@ main (int argc, char **argv)
 		   test_create_folder_button_is_invisible_in_open);
   g_test_add_func ("/filechooser/create_folder_button/is_visible_in_save",
 		   test_create_folder_button_is_visible_in_save);
+
+  g_test_add_func ("/filechooser/settings/sort_matches_settings",
+		   test_settings_sort_matches_settings);
 
   return g_test_run ();
 }
