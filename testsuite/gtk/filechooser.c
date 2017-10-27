@@ -19,7 +19,7 @@ create_file_chooser_dialog (GtkFileChooserAction action)
 					NULL);
 
   g_signal_connect_swapped (dialog, "destroy",
-			    G_CALLBACK (g_object_unref), window);
+			    G_CALLBACK (gtk_widget_destroy), window);
 
   return dialog;
 }
@@ -37,6 +37,8 @@ test_widget_is_focused_at_startup (GtkFileChooserAction action, const char *inst
   g_assert (focused != NULL);
 
   g_assert_cmpstr (g_type_name_from_instance ((GTypeInstance *) focused), ==, instance_name);
+
+  gtk_widget_destroy (dialog);
 }
 
 static void
@@ -129,6 +131,8 @@ test_create_folder_button_is_invisible_in_open (void)
   gtk_widget_show_now (dialog);
 
   check_create_folder_button_is_visible (GTK_FILE_CHOOSER_DIALOG (dialog), FALSE);
+
+  gtk_widget_destroy (dialog);
 }
 
 static void
@@ -140,6 +144,9 @@ test_create_folder_button_is_visible_in_save (void)
   gtk_widget_show_now (dialog);
 
   check_create_folder_button_is_visible (GTK_FILE_CHOOSER_DIALOG (dialog), TRUE);
+
+  gtk_widget_destroy (dialog);
+}
 }
 
 int
