@@ -108,6 +108,21 @@ set_iter_selection (GtkFileChooserView *view, GtkTreeIter *iter, gboolean do_sel
 }
 
 static void
+get_region_for_path (GtkFileChooserView *view, GtkTreePath *path, GdkRectangle *out_rect)
+{
+  GdkRectangle rect;
+
+  gtk_tree_view_get_cell_area (GTK_TREE_VIEW (view), path, NULL, &rect);
+  gtk_tree_view_convert_bin_window_to_widget_coords (GTK_TREE_VIEW (view),
+                                                     rect.x, rect.y, &rect.x, &rect.y);
+
+  rect.x = CLAMP (x - 20, 0, gtk_widget_get_allocated_width (GTK_WIDGET (view)) - 40);
+  rect.width = 40;
+
+  *out_rect = rect;
+}
+
+static void
 selected_foreach (GtkFileChooserView          *view,
 		  GtkTreeSelectionForeachFunc  func,
 		  gpointer                     data)
@@ -125,10 +140,11 @@ selected_foreach (GtkFileChooserView          *view,
 static void
 view_iface_init (GtkFileChooserViewIface *iface)
 {
-  iface->set_settings       = set_settings;
-  iface->set_model          = set_model;
-  iface->select_all         = select_all;
-  iface->unselect_all       = unselect_all;
-  iface->set_iter_selection = set_iter_selection;
-  iface->selected_foreach   = selected_foreach;
+  iface->set_settings        = set_settings;
+  iface->set_model           = set_model;
+  iface->select_all          = select_all;
+  iface->unselect_all        = unselect_all;
+  iface->set_iter_selection  = set_iter_selection;
+  iface->get_region_for_path = get_region_for_path;
+  iface->selected_foreach    = selected_foreach;
 }
