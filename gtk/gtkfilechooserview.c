@@ -120,6 +120,21 @@ gtk_file_chooser_view_set_iter_selection (GtkFileChooserView *view, GtkTreeIter 
 }
 
 void
+gtk_file_chooser_view_get_region_for_path (GtkFileChooserView *view, GtkTreePath *path, GdkRectangle *out_rect)
+{
+  GtkFileChooserViewIface *iface;
+
+  g_assert (GTK_IS_FILE_CHOOSER_VIEW (view));
+  g_assert (path != NULL);
+  g_assert (out_rect != NULL);
+
+  iface = GTK_FILE_CHOOSER_VIEW_GET_IFACE (view);
+
+  g_assert (iface->get_region_for_path != NULL);
+  (* iface->get_region_for_path) (view, path, out_rect);
+}
+
+void
 gtk_file_chooser_view_selected_foreach (GtkFileChooserView          *view,
                                         GtkTreeSelectionForeachFunc  func,
                                         gpointer                     data)

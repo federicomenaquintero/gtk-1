@@ -45,6 +45,7 @@ typedef struct {
   void (* select_all)          (GtkFileChooserView *view);
   void (* unselect_all)        (GtkFileChooserView *view);
   void (* set_iter_selection)  (GtkFileChooserView *view, GtkTreeIter *iter, gboolean do_select);
+  void (* get_region_for_path) (GtkFileChooserView *view, GtkTreePath *path, GdkRectangle *out_rect);
 
   void (* selected_foreach)    (GtkFileChooserView          *view,
                                 GtkTreeSelectionForeachFunc  func,
@@ -68,6 +69,9 @@ void gtk_file_chooser_view_unselect_all (GtkFileChooserView *view);
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_view_set_iter_selection (GtkFileChooserView *view, GtkTreeIter *iter, gboolean do_select);
+
+G_GNUC_INTERNAL
+void gtk_file_chooser_view_get_region_for_path (GtkFileChooserView *view, GtkTreePath *path, GdkRectangle *out_rect);
 
 G_GNUC_INTERNAL
 void gtk_file_chooser_view_selected_foreach (GtkFileChooserView          *view,
