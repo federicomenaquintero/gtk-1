@@ -36,6 +36,10 @@ typedef struct _GtkFileChooserView GtkFileChooserView;
 typedef struct {
   GTypeInterface base_iface;
 
+  /* Signals */
+  void (* context_menu)        (GtkFileChooserView *view,
+                                GdkRectangle       *relative_to);
+
   void (* set_settings)        (GtkFileChooserView *view, GtkFileChooserSettings *settings);
   void (* set_model)           (GtkFileChooserView *view, GtkFileSystemModel *model);
   void (* select_all)          (GtkFileChooserView *view);
@@ -69,6 +73,10 @@ G_GNUC_INTERNAL
 void gtk_file_chooser_view_selected_foreach (GtkFileChooserView          *view,
                                              GtkTreeSelectionForeachFunc  func,
                                              gpointer                     data);
+
+G_GNUC_INTERNAL
+void gtk_file_chooser_view_emit_context_menu (GtkFileChooserView *view,
+                                              GdkRectangle       *relative_to);
 
 G_END_DECLS
 

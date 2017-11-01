@@ -17,13 +17,36 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
+
 #include "gtkfilechooserview.h"
+#include "gtkintl.h"
 
 typedef GtkFileChooserViewIface GtkFileChooserViewInterface;
+
+enum
+{
+  CONTEXT_MENU,
+  LAST_SIGNAL
+};
+
+static guint signals[LAST_SIGNAL] = { 0, };
 
 static void
 gtk_file_chooser_view_default_init (GtkFileChooserViewInterface *iface)
 {
+  GType iface_type = G_TYPE_FROM_INTERFACE (iface);
+
+  signals[CONTEXT_MENU] =
+    g_signal_new (I_("context-menu"),
+                  iface_type,
+                  G_SIGNAL_RUN_LAST,
+                  G_STRUCT_OFFSET (GtkFileChooserViewIface, context_menu),
+                  NULL, NULL,
+                  NULL,
+                  G_TYPE_NONE,
+                  1,
+                  GDK_TYPE_RECTANGLE);
 }
 
 G_DEFINE_INTERFACE (GtkFileChooserView, gtk_file_chooser_view, G_TYPE_OBJECT)
@@ -110,4 +133,17 @@ gtk_file_chooser_view_selected_foreach (GtkFileChooserView          *view,
 
   g_assert (iface->selected_foreach != NULL);
   (* iface->selected_foreach) (view, func, data);
+}
+
+void
+gtk_file_chooser_view_emit_context_menu (GtkFileChooserView *view,
+                                         GdkRectangle       *relative_to)
+{
+  g_assert (GTK_IS_FILE_CHOOSER_VIEW (view));
+  g_assert (relative_to != NULL);
+
+  g_signal_emit (view,
+                 signals[CONTEXT_MENU],
+                 0,
+                 relative_to);
 }
