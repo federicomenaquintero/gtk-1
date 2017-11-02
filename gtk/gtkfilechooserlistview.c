@@ -67,7 +67,11 @@ long_press_cb (GtkGesture             *gesture,
     {
       GtkTreePath *path = list->data;
 
-      gtk_file_chooser_view_get_region_for_path (GTK_FILE_CHOOSER_VIEW (view), path, &rect);
+      gtk_tree_view_get_cell_area (GTK_TREE_VIEW (view), path, NULL, &rect);
+      gtk_tree_view_convert_bin_window_to_widget_coords (GTK_TREE_VIEW (view),
+                                                         rect.x, rect.y, &rect.x, &rect.y);
+      rect.x = CLAMP (x - 20, 0, gtk_widget_get_allocated_width (GTK_WIDGET (view)) - 40);
+      rect.width = 40;
 
       g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
     }
@@ -183,9 +187,10 @@ get_region_for_path (GtkFileChooserView *view, GtkTreePath *path, GdkRectangle *
   gtk_tree_view_get_cell_area (GTK_TREE_VIEW (view), path, NULL, &rect);
   gtk_tree_view_convert_bin_window_to_widget_coords (GTK_TREE_VIEW (view),
                                                      rect.x, rect.y, &rect.x, &rect.y);
-
+  /*
   rect.x = CLAMP (x - 20, 0, gtk_widget_get_allocated_width (GTK_WIDGET (view)) - 40);
   rect.width = 40;
+  */
 
   *out_rect = rect;
 }
