@@ -2180,19 +2180,6 @@ file_list_show_popover_at_point (GtkFileChooserWidget *impl,
   file_list_show_popover (impl, &rect);
 }
 
-/* Callback used for the GtkWidget::popup-menu signal of the file list */
-static gboolean
-list_popup_menu_cb (GtkWidget            *widget,
-                    GtkFileChooserWidget *impl)
-{
-  GtkFileChooserWidgetPrivate *priv = impl->priv;
-
-  file_list_show_popover_at_point (impl,
-				   0.5 * gtk_widget_get_allocated_width (GTK_WIDGET (priv->browse_files_tree_view)),
-				   0.5 * gtk_widget_get_allocated_height (GTK_WIDGET (priv->browse_files_tree_view)));
-  return TRUE;
-}
-
 static void
 get_selection_modifiers (GtkWidget       *widget,
                          GdkEventButton  *event,
@@ -8176,7 +8163,6 @@ gtk_file_chooser_widget_class_init (GtkFileChooserWidgetClass *class)
   gtk_widget_class_bind_template_callback (widget_class, browse_files_key_press_event_cb);
   gtk_widget_class_bind_template_callback (widget_class, file_list_drag_drop_cb);
   gtk_widget_class_bind_template_callback (widget_class, file_list_drag_data_received_cb);
-  gtk_widget_class_bind_template_callback (widget_class, list_popup_menu_cb);
   gtk_widget_class_bind_template_callback (widget_class, file_list_query_tooltip_cb);
   gtk_widget_class_bind_template_callback (widget_class, list_button_press_event_cb);
   gtk_widget_class_bind_template_callback (widget_class, list_row_activated);

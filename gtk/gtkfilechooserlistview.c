@@ -52,10 +52,9 @@ get_private (GtkFileChooserListView *view)
 }
 
 static void
-long_press_cb (GtkGesture             *gesture,
-               gdouble                 x,
-               gdouble                 y,
-               GtkFileChooserListView *view)
+context_menu_at_point (GtkFileChooserListView *view,
+                       gint                    x,
+                       gint                    y)
 {
   GdkRectangle rect;
   GtkTreeSelection *selection;
@@ -87,6 +86,15 @@ long_press_cb (GtkGesture             *gesture,
 }
 
 static void
+long_press_cb (GtkGesture             *gesture,
+               gdouble                 x,
+               gdouble                 y,
+               GtkFileChooserListView *view)
+{
+  context_menu_at_point (view, (gint) x, (gint) y);
+}
+
+static void
 init_long_press_gesture (GtkFileChooserListView *view)
 {
   GtkFileChooserListViewPrivate *priv = get_private (view);
@@ -114,6 +122,25 @@ gtk_file_chooser_list_view_init (GtkFileChooserListView *view)
   init_long_press_gesture (view);
 }
 
+static gboolean
+popup_menu_cb (GtkWidget *widget,
+               GtkFileChooserListView *view)
+{
+  context_menu_at_point (view,
+                         (gint) (0.5 * gtk_widget_get_allocated_width (GTK_WIDGET (view))),
+                         (gint) (0.5 * gtk_widget_get_allocated_height (GTK_WIDGET (view))));
+  return TRUE;
+}
+
+static void
+gtk_file_chooser_list_view_constructed (GObject *object)
+{
+  GtkFileChooserListView *view = GTK_FILE_CHOOSER_LIST_VIEW (object);
+
+  g_signal_connect (view, "popup-menu",
+                    G_CALLBACK (popup_menu_cb), view);
+}
+
 static void
 gtk_file_chooser_list_view_class_init (GtkFileChooserListViewClass *klass)
 {
@@ -121,7 +148,8 @@ gtk_file_chooser_list_view_class_init (GtkFileChooserListViewClass *klass)
 
   object_class = (GObjectClass *) klass;
 
-  object_class->dispose = gtk_file_chooser_list_view_dispose;
+  object_class->dispose     = gtk_file_chooser_list_view_dispose;
+  object_class->constructed = gtk_file_chooser_list_view_constructed;
 }
 
 static void
