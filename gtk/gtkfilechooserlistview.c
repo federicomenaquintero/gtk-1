@@ -38,6 +38,11 @@ typedef struct
 
 static void view_iface_init (GtkFileChooserViewIface *iface);
 
+G_DEFINE_TYPE_WITH_CODE (GtkFileChooserListView, gtk_file_chooser_list_view, GTK_TYPE_TREE_VIEW,
+                         G_ADD_PRIVATE (GtkFileChooserListView)
+                         G_IMPLEMENT_INTERFACE (GTK_TYPE_FILE_CHOOSER_VIEW,
+                                                view_iface_init));
+
 static GtkFileChooserListViewPrivate *
 get_private (GtkFileChooserListView *view)
 {
@@ -114,11 +119,6 @@ gtk_file_chooser_list_view_class_init (GtkFileChooserListViewClass *klass)
 
   object_class->dispose = gtk_file_chooser_list_view_dispose;
 }
-
-G_DEFINE_TYPE_WITH_CODE (GtkFileChooserListView, gtk_file_chooser_list_view, GTK_TYPE_TREE_VIEW,
-                         G_ADD_PRIVATE (GtkFileChooserListView)
-                         G_IMPLEMENT_INTERFACE (GTK_TYPE_FILE_CHOOSER_VIEW,
-                                                view_iface_init));
 
 static void
 set_settings (GtkFileChooserView *view, GtkFileChooserSettings *settings)
