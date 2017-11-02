@@ -94,8 +94,6 @@ struct _GtkFileChooserWidgetPrivate {
   GtkWidget *rename_file_popover;
   GFile *rename_file_source_file;
 
-  GtkGesture *long_press_gesture;
-
   GtkFileSystemModel *browse_files_model;
   char *browse_files_last_selected_name;
 

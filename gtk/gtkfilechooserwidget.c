@@ -2282,15 +2282,6 @@ list_button_press_event_cb (GtkWidget            *widget,
   return TRUE;
 }
 
-static void
-long_press_cb (GtkGesture           *gesture,
-               gdouble               x,
-               gdouble               y,
-               GtkFileChooserWidget *impl)
-{
-  file_list_show_popover (impl, x, y);
-}
-
 /* Sets the sort column IDs for the file list; needs to be done whenever we
  * change the model on the treeview.
  */
@@ -3441,8 +3432,6 @@ gtk_file_chooser_widget_dispose (GObject *object)
       location_entry_disconnect (impl);
       priv->external_entry = NULL;
     }
-
-  g_clear_object (&priv->long_press_gesture);
 
   G_OBJECT_CLASS (gtk_file_chooser_widget_parent_class)->dispose (object);
 }
@@ -8363,11 +8352,6 @@ gtk_file_chooser_widget_init (GtkFileChooserWidget *impl)
   set_file_system_backend (impl);
 
   priv->bookmarks_manager = _gtk_bookmarks_manager_new (NULL, NULL);
-
-  priv->long_press_gesture = gtk_gesture_long_press_new (priv->browse_files_tree_view);
-  gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (priv->long_press_gesture), TRUE);
-  g_signal_connect (priv->long_press_gesture, "pressed",
-                    G_CALLBACK (long_press_cb), impl);
 
   /* Setup various attributes and callbacks in the UI
    * which cannot be done with GtkBuilder.
