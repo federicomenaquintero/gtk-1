@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "gtkfilechooserlistview.h"
+#include "gtkgesturelongpress.h"
 
 struct _GtkFileChooserListView
 {
@@ -32,19 +33,86 @@ struct _GtkFileChooserListViewClass
 
 typedef struct
 {
-  int dummy;
+  GtkGesture *long_press_gesture;
 } GtkFileChooserListViewPrivate;
 
 static void view_iface_init (GtkFileChooserViewIface *iface);
 
-static void
-gtk_file_chooser_list_view_init (GtkFileChooserListView *view)
+static GtkFileChooserListViewPrivate *
+get_private (GtkFileChooserListView *view)
 {
+  return G_TYPE_INSTANCE_GET_PRIVATE (view,
+                                      GTK_TYPE_FILE_CHOOSER_LIST_VIEW,
+                                      GtkFileChooserListViewPrivate);
 }
 
 static void
-gtk_file_chooser_list_view_class_init (GtkFileChooserListViewClass *view)
+long_press_cb (GtkGesture             *gesture,
+               gdouble                 x,
+               gdouble                 y,
+               GtkFileChooserListView *view)
 {
+  GdkRectangle rect;
+  GtkTreeSelection *selection;
+  GList *list;
+
+  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (view));
+  list = gtk_tree_selection_get_selected_rows (selection, NULL);
+  if (list)
+    {
+      GtkTreePath *path = list->data;
+
+      gtk_file_chooser_view_get_region_for_path (GTK_FILE_CHOOSER_VIEW (view), path, &rect);
+
+      g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
+    }
+  else
+    {
+      rect.x = x;
+      rect.y = y;
+      rect.width = 1;
+      rect.height = 1;
+    }
+
+  gtk_file_chooser_view_emit_context_menu (GTK_FILE_CHOOSER_VIEW (view), &rect);
+}
+
+static void
+init_long_press_gesture (GtkFileChooserListView *view)
+{
+  GtkFileChooserListViewPrivate *priv = get_private (view);
+
+  priv->long_press_gesture = gtk_gesture_long_press_new (GTK_WIDGET (view));
+  gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (priv->long_press_gesture), TRUE);
+  g_signal_connect (priv->long_press_gesture, "pressed",
+                    G_CALLBACK (long_press_cb), view);
+}
+
+static void
+gtk_file_chooser_list_view_dispose (GObject *object)
+{
+  GtkFileChooserListView *view = GTK_FILE_CHOOSER_LIST_VIEW (object);
+  GtkFileChooserListViewPrivate *priv = get_private (view);
+
+  g_clear_object (&priv->long_press_gesture);
+
+  G_OBJECT_CLASS (gtk_file_chooser_list_view_parent_class)->dispose (object);
+}
+
+static void
+gtk_file_chooser_list_view_init (GtkFileChooserListView *view)
+{
+  init_long_press_gesture (view);
+}
+
+static void
+gtk_file_chooser_list_view_class_init (GtkFileChooserListViewClass *klass)
+{
+  GObjectClass *object_class;
+
+  object_class = (GObjectClass *) klass;
+
+  object_class->dispose = gtk_file_chooser_list_view_dispose;
 }
 
 G_DEFINE_TYPE_WITH_CODE (GtkFileChooserListView, gtk_file_chooser_list_view, GTK_TYPE_TREE_VIEW,
